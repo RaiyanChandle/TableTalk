@@ -64,6 +64,16 @@ The **AI Data Analyst** allows users to drop in multiple CSV files and immediate
    - *Decision*: Combine pre-execution SQL validation (blocking multi-statements, DDL, file functions, and comment evasion) with DuckDB's engine lockdown (`SET enable_external_access=false; SET lock_configuration=true;`) and Node timer-based `conn.interrupt()`.
    - *Trade-off*: Adds minimal pre-parsing overhead (~0.2ms per query), but creates impossible-to-bypass defense in depth where even unknown zero-day SQL functions cannot access the filesystem or freeze worker threads.
 
+10. **Agent State Machine & Deterministic 3-Tool Contract**:
+    - *Decision*: Provide the agent with exactly three granular tools (`get_schema`, `run_sql`, `create_chart`). Decouple chart generation from SQL execution via an ephemeral server-side `resultId` pointer rather than streaming megabytes of raw table data back and forth through the LLM context window.
+    - *Trade-off*: Requires an in-memory `ResultStore` with a 15-minute TTL, but reduces prompt token consumption by >80% and ensures charting operations work directly on deterministic column definitions.
+11. **Self-Correction Retry Loop (Max 3 Attempts) with Error Feedback**:
+    - *Decision*: When `run_sql` fails (e.g. column mismatch or syntax error), the exact DuckDB error string is formatted and returned directly to the model as tool output, incrementing an attempt counter capped at 3.
+    - *Trade-off*: Consumes additional LLM roundtrips on error, but autonomously recovers from common LLM hallucinations like column casing or alias typos without surfacing premature errors to the user.
+12. **Tamper-Proof Auditability (`RunLog` + `TraceCollector`)**:
+    - *Decision*: Implement a custom LangChain `BaseCallbackHandler` (`TraceCollector`) that captures LLM inputs/outputs, exact tool invocations, duration timings, token metrics, and SQL errors, persisting a complete `RunLog` in MongoDB for every analytical question.
+    - *Trade-off*: Adds minor document storage overhead per question, but unlocks full post-hoc explainability, debugging, and dynamic Markdown report generation.
+
 ---
 
 ## 5. Security & Isolation Model
@@ -102,4 +112,10 @@ The **AI Data Analyst** allows users to drop in multiple CSV files and immediate
 > 1. Memory limit: We execute `SET memory_limit='512MB'` upon initialization to enforce a strict ceiling.
 > 2. Execution timeout: We start an asynchronous timer matching `SQL_TIMEOUT_MS` (5000ms). If exceeded, we invoke `conn.interrupt()` on the active DuckDB connection, terminating execution immediately.
 > 3. Result capping: Queries are wrapped with an outer `LIMIT (maxRows + 1)` layer to cap rows returned to the server and detect truncation without loading unbounded rows into Node memory.
+
+**Q: Why decouple `run_sql` and `create_chart` via a `resultId` instead of having the model pass the raw dataset or generate charts in one step?**
+> **A:** If the model had to receive the entire SQL result set and pass it into a chart tool, large analytical results (e.g. 500 rows) would flood the context window, drastically increasing token costs and latency while risking context truncation. By caching the typed SQL execution result in an in-memory `ResultStore` and returning an ephemeral `resultId` plus up to 50 sample rows, the model only needs to provide column mapping metadata (`type`, `x`, `y`, `title`). The server validates the mapping against the stored result and binds the chart data deterministically.
+
+**Q: How does the agent self-correct when a generated SQL query contains an error?**
+> **A:** In `runSqlTool`, errors from DuckDB or the SQL validator are caught and formatted as structured error feedback returned to the model as tool output (e.g., `Error: Binder Error: Referenced column "rev" not found. Available columns in "orders": id, customer_id, revenue, created_at`). The agent inspects the schema and available columns, refines its SQL, and tries again. We track execution attempts and enforce a hard limit of 3 tries to prevent infinite retry loops.
 

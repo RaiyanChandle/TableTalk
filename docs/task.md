@@ -99,17 +99,17 @@ Mark items as you finish them.
 
 ### Phase 4 — Agent with Gemini (2 days)
 
-- [ ] `getModel()` using `ChatGoogleGenerativeAI` (model, temperature 0, max output tokens, retries from env)
-- [ ] Tool `get_schema` — all selected tables: columns, types, row count, 5 sample rows, plus `candidateJoins`
-- [ ] Tool `run_sql` — validates and executes, returns a `resultId` plus up to 50 rows to the model
-- [ ] Tool `create_chart` — takes `resultId` and a mapping (type, x, y, title); validates with Zod
-- [ ] Keep tool schemas simple (strings, numbers, enums, arrays) so Gemini function calling stays reliable
-- [ ] Dataset ids and file paths bound by the server, never supplied by the model
-- [ ] System prompt versioned (`PROMPT_VERSION`), including join rules (see `design.md`)
-- [ ] Retry on SQL error: error goes back to the model, max 3 attempts
-- [ ] Step limit and per-question token budget
-- [ ] `TraceCollector` (LangChain callback handler) records every LLM call and tool call
-- [ ] Final answer shape: `{ answer, sql, table, chart }`
+- [x] `getModel()` using `ChatGoogleGenerativeAI` (model, temperature 0, max output tokens, retries from env)
+- [x] Tool `get_schema` — all selected tables: columns, types, row count, 5 sample rows, plus `candidateJoins`
+- [x] Tool `run_sql` — validates and executes, returns a `resultId` plus up to 50 rows to the model
+- [x] Tool `create_chart` — takes `resultId` and a mapping (type, x, y, title); validates with Zod
+- [x] Keep tool schemas simple (strings, numbers, enums, arrays) so Gemini function calling stays reliable
+- [x] Dataset ids and file paths bound by the server, never supplied by the model
+- [x] System prompt versioned (`PROMPT_VERSION`), including join rules (see `design.md`)
+- [x] Retry on SQL error: error goes back to the model, max 3 attempts
+- [x] Step limit and per-question token budget
+- [x] `TraceCollector` (LangChain callback handler) records every LLM call and tool call
+- [x] Final answer shape: `{ answer, sql, table, chart }`
 
 **Done when:** the agent answers "total revenue by customer country" over an `orders` and a `customers` CSV with a correct join and a bar chart, and recovers from a deliberately wrong column name.
 
