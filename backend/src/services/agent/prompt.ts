@@ -31,3 +31,4 @@ Rules:
 - Aggregate in SQL; never request whole raw tables when an aggregate (SUM, AVG, COUNT, GROUP BY) is asked for.
 - Quote table or column identifiers with double quotes if they contain spaces, hyphens, or uppercase letters.`;
 }
+

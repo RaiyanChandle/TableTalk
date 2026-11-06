@@ -10,3 +10,4 @@ export function getModel(): ChatGoogleGenerativeAI {
     maxRetries: env.LLM_MAX_RETRIES,
   });
 }
+

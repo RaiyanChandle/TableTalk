@@ -127,14 +127,14 @@ Mark items as you finish them.
 
 ### Phase 6 — Chat UI and charts (2 days)
 
-- [ ] Layout: sidebar (datasets with checkboxes, conversations list) + main chat
-- [ ] "Start analysis" button creates a conversation from the selected datasets; show "Tables in this chat" chips
-- [ ] Message list with streaming text, "Show SQL" toggle, result table, live step status
-- [ ] `ChartRenderer`: bar, line, area, pie, scatter
-- [ ] Suggested questions generated from the schemas (including cross-table ideas)
-- [ ] Loading, empty, and error states; Stop button aborts the stream
-- [ ] Download chart as PNG and result as CSV
-- [ ] Responsive layout for mobile
+- [x] Layout: sidebar (datasets with checkboxes, conversations list) + main chat
+- [x] "Start analysis" button creates a conversation from the selected datasets; show "Tables in this chat" chips
+- [x] Message list with streaming text, "Show SQL" toggle, result table, live step status
+- [x] `ChartRenderer`: bar, line, area, pie, scatter
+- [x] Suggested questions generated from the schemas (including cross-table ideas)
+- [x] Loading, empty, and error states; Stop button aborts the stream
+- [x] Download chart as PNG and result as CSV
+- [x] Responsive layout for mobile
 
 ### Phase 7 — Analysis report: the living doc (1.5 days)
 

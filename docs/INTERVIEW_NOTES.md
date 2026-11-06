@@ -79,6 +79,12 @@ The **AI Data Analyst** allows users to drop in multiple CSV files and immediate
 14. **Streaming Protocol via Server-Sent Events (SSE)**:
     - *Decision*: Use standard SSE over `POST /api/conversations/:id/messages` delivering typed events (`status`, `step`, `sql`, `table`, `chart`, `token`, `done`, `error`).
     - *Trade-off*: Demands manual `ReadableStream` decoding on the frontend (since native browser `EventSource` lacks POST body support), but provides a lightweight, unidirectional streaming pipe without WebSocket connection management overhead.
+15. **Contextual Question Suggestions & Editorial Canvas Composition**:
+    - *Decision*: Inspect dataset snapshots client-side to generate dynamic cross-table analytical suggestions (`generateSuggestedQuestions`) upon opening a fresh analysis thread. Structure the central workspace as an editorial printed report sheet with a 760px focus column and collapsible technical disclosures (SQL drawer, raw data table).
+    - *Trade-off*: Adds heuristics on column data types, but eliminates blank-canvas anxiety for business users while preserving high-density technical depth for engineers.
+16. **Client-Side Vectorless Canvas PNG & CSV Export**:
+    - *Decision*: Implement SVG-to-canvas rasterization for one-click PNG downloads of Recharts visualizations and RFC 4180 CSV generation on data tables directly in the browser.
+    - *Trade-off*: Relies on client-side canvas rendering APIs, but eliminates server load and storage requirements for temporary static chart images or exported CSV tables.
 
 ---
 
@@ -130,4 +136,10 @@ The **AI Data Analyst** allows users to drop in multiple CSV files and immediate
 
 **Q: How do you handle dataset deletion when past conversations still reference that dataset?**
 > **A:** When a user creates a conversation, we copy immutable `datasetSnapshots` (column names, types, table names, row counts) into the conversation record. If the user later deletes one of those datasets, we delete the physical file and the `Dataset` document, but mark all conversations containing that dataset ID as `readOnly = true`. This prevents attempting to run new SQL queries on nonexistent disk files, while ensuring all existing messages, SQL queries, charts, and report exports remain 100% readable and auditable.
+
+**Q: How does the UI handle long-running queries or runaway model generation while maintaining a responsive experience?**
+> **A:** We supply an asynchronous `AbortController` coupled to both the HTTP SSE fetch connection and the UI Stop button. When the user clicks Stop, the browser aborts the request, halting client-side stream consumption. On the server side, DuckDB queries are bound by hard timeouts (`conn.interrupt()`), and the SSE connection closure terminates remaining agent iterations gracefully.
+
+**Q: Why use client-side SVG-to-Canvas rasterization for chart PNG downloads rather than a server-side headless browser or rendering service?**
+> **A:** Server-side headless browsers (such as Puppeteer or Playwright) add heavy container image footprints (300MB+), significant memory overhead, and security attack vectors on the backend. Because Recharts already renders complete vector SVG DOM elements directly inside the user's browser, we can serialize the SVG string into an `Image` element and draw it onto a 2x high-DPI HTML5 canvas in under 15ms. This gives the user crisp, instant PNG downloads without adding server complexity or latency.
 

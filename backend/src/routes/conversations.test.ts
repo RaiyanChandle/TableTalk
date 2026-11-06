@@ -106,3 +106,4 @@ describe('Conversation & Message Models Structure', () => {
     assert.equal(doc.runId, 'run_test_123');
   });
 });
+

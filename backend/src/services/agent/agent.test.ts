@@ -244,3 +244,4 @@ describe('TraceCollector Callbacks', () => {
     assert.equal(collector.tokens.total, 165);
   });
 });
+

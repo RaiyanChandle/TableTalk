@@ -49,3 +49,4 @@ const ConversationSchema = new Schema<IConversation>(
 );
 
 export const Conversation = mongoose.model<IConversation>('Conversation', ConversationSchema);
+

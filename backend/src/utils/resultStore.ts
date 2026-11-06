@@ -51,3 +51,4 @@ class ResultStore {
 }
 
 export const resultStore = new ResultStore();
+

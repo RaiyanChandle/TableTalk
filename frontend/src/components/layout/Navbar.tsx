@@ -51,7 +51,7 @@ export const Navbar: React.FC = () => {
             letterSpacing: '-0.01em',
           }}
         >
-          sqlrag
+          ChatQL
         </span>
       </div>
 

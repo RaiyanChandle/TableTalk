@@ -1,63 +1,150 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { deleteDatasetApi, getDatasetPreviewApi, getDatasetsApi, uploadDatasetsApi } from '../api/datasets';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  ArrowUp,
+  CheckSquare,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  Layers,
+  MessageSquare,
+  Plus,
+  Square,
+  StopCircle,
+  Trash2,
+  Upload,
+  X,
+  Menu,
+} from 'lucide-react';
 import { Navbar } from '../components/layout/Navbar';
-import type { Dataset } from '../types';
-
-interface AnswerSheet {
-  id: string;
-  question: string;
-  tablesUsed: string[];
-  rowCount: number;
-  durationMs: number;
-  finding: string;
-  sql: string;
-  table?: {
-    columns: string[];
-    rows: Record<string, unknown>[];
-  };
-}
+import { MessageCard } from '../components/chat/MessageCard';
+import { ChartRenderer } from '../components/chat/ChartRenderer';
+import {
+  createConversationApi,
+  deleteConversationApi,
+  getConversationsApi,
+  getMessagesApi,
+  streamMessageApi,
+} from '../api/conversations';
+import { deleteDatasetApi, getDatasetsApi, uploadDatasetsApi } from '../api/datasets';
+import { generateSuggestedQuestions } from '../utils/suggestedQuestions';
+import type { Conversation, Dataset, Message, TablePreview, ChartSpec } from '../types';
 
 export const AppPage: React.FC = () => {
+  // Mobile sidebar state
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Datasets state
   const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [selectedDatasetIds, setSelectedDatasetIds] = useState<string[]>([]);
   const [loadingDatasets, setLoadingDatasets] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-
-  // Schema expansion tracking
   const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
 
-  // Questions and query state
+  // Conversations state
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+
+  // Messages state
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Query composer state
   const [question, setQuestion] = useState('');
-  const [answers, setAnswers] = useState<AnswerSheet[]>([]);
-  const [pastQuestions, setPastQuestions] = useState<string[]>([]);
-  const [queryProgress, setQueryProgress] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamStatus, setStreamStatus] = useState<string | null>(null);
+  const [streamStep, setStreamStep] = useState<{ index: number; name: string; status: string } | null>(null);
+  const [streamingAnswer, setStreamingAnswer] = useState<string>('');
+  const [streamingSql, setStreamingSql] = useState<string | null>(null);
+  const [streamingTable, setStreamingTable] = useState<TablePreview | null>(null);
+  const [streamingChart, setStreamingChart] = useState<ChartSpec | null>(null);
 
-  // Hidden file input ref
+  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Fetch datasets on mount
-  const loadDatasets = async () => {
+  // Active conversation object
+  const activeConversation = useMemo(() => {
+    return conversations.find((c) => c.id === activeConversationId) || null;
+  }, [conversations, activeConversationId]);
+
+  // Suggested questions based on snapshots
+  const suggestedQuestions = useMemo(() => {
+    if (!activeConversation) return [];
+    return generateSuggestedQuestions(activeConversation.datasetSnapshots);
+  }, [activeConversation]);
+
+  // Tables used in active conversation
+  const activeTableNames = useMemo(() => {
+    if (!activeConversation) return [];
+    return activeConversation.datasetSnapshots.map((s) => s.tableName);
+  }, [activeConversation]);
+
+  // Load initial datasets and conversations
+  const loadData = async () => {
     try {
       setLoadingDatasets(true);
-      const data = await getDatasetsApi();
-      setDatasets(data);
+      setLoadingConversations(true);
+      const [fetchedDatasets, fetchedConversations] = await Promise.all([
+        getDatasetsApi(),
+        getConversationsApi(),
+      ]);
+      setDatasets(fetchedDatasets);
+      setConversations(fetchedConversations);
+
+      // Auto-select latest conversation if available
+      if (fetchedConversations.length > 0 && !activeConversationId) {
+        setActiveConversationId(fetchedConversations[0].id);
+      }
     } catch (err) {
-      console.error('Failed to load datasets:', err);
+      console.error('Failed to load initial workspace data:', err);
     } finally {
       setLoadingDatasets(false);
+      setLoadingConversations(false);
     }
   };
 
   useEffect(() => {
-    loadDatasets();
+    loadData();
   }, []);
 
+  // Fetch messages when active conversation changes
+  useEffect(() => {
+    if (!activeConversationId) {
+      setMessages([]);
+      return;
+    }
+
+    const loadConversationMessages = async () => {
+      try {
+        setLoadingMessages(true);
+        const msgs = await getMessagesApi(activeConversationId);
+        setMessages(msgs);
+      } catch (err) {
+        console.error('Failed to load messages:', err);
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+
+    loadConversationMessages();
+  }, [activeConversationId]);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, streamingAnswer, streamStatus]);
+
+  // Handle CSV file upload
   const handleFilesChosen = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const fileArray = Array.from(files);
 
     setUploading(true);
-    setUploadMessage('Ingesting and parsing CSV files...');
+    setUploadMessage('Ingesting and parsing CSV files with DuckDB...');
 
     try {
       const results = await uploadDatasetsApi(fileArray);
@@ -72,9 +159,16 @@ export const AppPage: React.FC = () => {
         setUploadMessage(null);
       }
 
-      await loadDatasets();
+      const updated = await getDatasetsApi();
+      setDatasets(updated);
+
+      // Automatically select newly uploaded datasets
+      if (successful.length > 0) {
+        const newIds = successful.map((s) => s.dataset!.id);
+        setSelectedDatasetIds((prev) => Array.from(new Set([...prev, ...newIds])).slice(0, 5));
+      }
     } catch (err: any) {
-      setUploadMessage(err?.message || 'Upload failed');
+      setUploadMessage(err?.message || 'File upload failed');
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -83,326 +177,366 @@ export const AppPage: React.FC = () => {
     }
   };
 
-  const handleRemoveDataset = async (id: string, e: React.MouseEvent) => {
+  // Toggle dataset selection checkbox
+  const toggleSelectDataset = (id: string) => {
+    setSelectedDatasetIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((dId) => dId !== id);
+      }
+      if (prev.length >= 5) {
+        return prev; // capped at 5 datasets
+      }
+      return [...prev, id];
+    });
+  };
+
+  // Delete a dataset
+  const handleDeleteDataset = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this dataset? Referenced conversations will become read-only.')) {
+      return;
+    }
     try {
       await deleteDatasetApi(id);
-      await loadDatasets();
+      setSelectedDatasetIds((prev) => prev.filter((dId) => dId !== id));
+      const [updatedDatasets, updatedConversations] = await Promise.all([
+        getDatasetsApi(),
+        getConversationsApi(),
+      ]);
+      setDatasets(updatedDatasets);
+      setConversations(updatedConversations);
     } catch (err) {
       console.error('Failed to delete dataset:', err);
     }
   };
 
-  const toggleTableExpanded = (tableName: string) => {
-    setExpandedTables((prev) => ({
-      ...prev,
-      [tableName]: !prev[tableName],
-    }));
-  };
+  // Create a new conversation from checked datasets
+  const handleStartAnalysis = async () => {
+    if (selectedDatasetIds.length === 0 || selectedDatasetIds.length > 5) return;
 
-  const handleRunQuery = async (queryText: string) => {
-    const trimmed = queryText.trim();
-    if (!trimmed || queryProgress || datasets.length === 0) return;
-
-    setPastQuestions((prev) => [trimmed, ...prev.filter((q) => q !== trimmed)]);
-    setQuestion('');
-
-    // Simulate query execution progress
-    setQueryProgress('Reading schema');
-    setTimeout(() => {
-      setQueryProgress('Writing query');
-      setTimeout(async () => {
-        setQueryProgress('Running query');
-
-        try {
-          // If datasets exist, fetch preview from the primary dataset
-          const primary = datasets[0];
-          const preview = await getDatasetPreviewApi(primary.id);
-
-          setAnswers((prev) => [
-            {
-              id: Date.now().toString(),
-              question: trimmed,
-              tablesUsed: [primary.tableName],
-              rowCount: preview.dataset.rowCount,
-              durationMs: 84,
-              finding: `Analysis across ${primary.tableName} returned ${preview.dataset.rowCount} rows with ${preview.dataset.columns.length} attributes.`,
-              sql: `SELECT * FROM ${primary.tableName} LIMIT 20;`,
-              table: {
-                columns: preview.dataset.columns.map((c) => c.name),
-                rows: preview.previewRows,
-              },
-            },
-            ...prev,
-          ]);
-        } catch (_err) {
-          setAnswers((prev) => [
-            {
-              id: Date.now().toString(),
-              question: trimmed,
-              tablesUsed: datasets.map((d) => d.tableName),
-              rowCount: 0,
-              durationMs: 120,
-              finding: 'Query processed and validated against in-memory DuckDB sandbox.',
-              sql: `SELECT * FROM ${datasets[0]?.tableName || 'data'} LIMIT 10;`,
-            },
-            ...prev,
-          ]);
-        } finally {
-          setQueryProgress(null);
-        }
-      }, 350);
-    }, 350);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleRunQuery(question);
+    try {
+      const conv = await createConversationApi({
+        datasetIds: selectedDatasetIds,
+      });
+      setConversations((prev) => [conv, ...prev]);
+      setActiveConversationId(conv.id);
+      setMobileSidebarOpen(false);
+    } catch (err) {
+      console.error('Failed to create analysis conversation:', err);
     }
   };
 
-  // Sample questions generated from schema
-  const sampleQuestions = [
-    `Summarize total row count and top records across ${datasets[0]?.tableName || 'the dataset'}`,
-    datasets.length > 1
-      ? `Compare record distribution between ${datasets[0]?.tableName} and ${datasets[1]?.tableName}`
-      : `Group and aggregate key numeric attributes in ${datasets[0]?.tableName}`,
-    `Show the most recent entries and column patterns in ${datasets[0]?.tableName}`,
-  ];
+  // Delete conversation
+  const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Delete this conversation, messages, and run traces?')) return;
+
+    try {
+      await deleteConversationApi(id);
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (activeConversationId === id) {
+        const remaining = conversations.filter((c) => c.id !== id);
+        setActiveConversationId(remaining.length > 0 ? remaining[0].id : null);
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
+  };
+
+  // Send question and start SSE stream
+  const handleSendQuestion = async (queryText?: string) => {
+    const textToSend = (queryText || question).trim();
+    if (!textToSend || !activeConversationId || isStreaming || activeConversation?.readOnly) {
+      return;
+    }
+
+    setQuestion('');
+    setIsStreaming(true);
+    setStreamStatus('Initializing analytical sandbox...');
+    setStreamStep(null);
+    setStreamingAnswer('');
+    setStreamingSql(null);
+    setStreamingTable(null);
+    setStreamingChart(null);
+
+    // Optimistically add user message
+    const tempUserMsg: Message = {
+      id: `temp_${Date.now()}`,
+      conversationId: activeConversationId,
+      role: 'user',
+      content: textToSend,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempUserMsg]);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      await streamMessageApi(
+        activeConversationId,
+        textToSend,
+        {
+          onStatus: (data) => {
+            setStreamStatus(data.message);
+          },
+          onStep: (data) => {
+            setStreamStep(data);
+          },
+          onSql: (data) => {
+            setStreamingSql(data.sql);
+          },
+          onTable: (data) => {
+            setStreamingTable(data);
+          },
+          onChart: (data) => {
+            setStreamingChart(data);
+          },
+          onToken: (data) => {
+            setStreamingAnswer((prev) => prev + data.text);
+          },
+          onDone: async () => {
+            setIsStreaming(false);
+            setStreamStatus(null);
+            // Refresh messages list from DB for complete consistency
+            const msgs = await getMessagesApi(activeConversationId);
+            setMessages(msgs);
+            // Refresh conversation title in sidebar if updated
+            const updatedConvs = await getConversationsApi();
+            setConversations(updatedConvs);
+          },
+          onError: (data) => {
+            setIsStreaming(false);
+            setStreamStatus(null);
+            const errorMsg: Message = {
+              id: `err_${Date.now()}`,
+              conversationId: activeConversationId,
+              role: 'assistant',
+              content: data.message || 'Execution error encountered.',
+              error: data.detail || data.message,
+              createdAt: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, errorMsg]);
+          },
+        },
+        controller.signal
+      );
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error('Error during message stream:', err);
+        setStreamStatus(null);
+        setIsStreaming(false);
+      }
+    }
+  };
+
+  // Abort running stream
+  const handleStopStream = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsStreaming(false);
+      setStreamStatus(null);
+    }
+  };
 
   return (
-    <div
-      style={{
-        height: '100vh',
-        width: '100vw',
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#F6F4EF',
-        overflow: 'hidden',
-        fontFamily: 'IBM Plex Sans, sans-serif',
-      }}
-    >
+    <div className="min-h-screen bg-[#F6F4EF] flex flex-col font-sans text-[#22201D] selection:bg-[#EFECE4]">
       <Navbar />
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept=".csv"
-        style={{ display: 'none' }}
-        onChange={(e) => handleFilesChosen(e.target.files)}
-      />
+      {/* Main Workspace Frame */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Mobile Sidebar Overlay */}
+        {mobileSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 z-40 md:hidden"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Left Rail (280px wide, #EFECE4, 1px right border #DDD8CB) */}
+        {/* Left Rail (280px) */}
         <aside
-          style={{
-            width: '280px',
-            minWidth: '280px',
-            backgroundColor: '#EFECE4',
-            borderRight: '1px solid #DDD8CB',
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            boxSizing: 'border-box',
-            overflowY: 'auto',
-          }}
+          className={`fixed md:static inset-y-0 left-0 z-50 w-72 bg-[#EFECE4] border-r border-[#DDD8CB] flex flex-col transform transition-transform duration-200 ease-in-out md:translate-x-0 ${
+            mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Section 1: Data Sources */}
-            <div>
-              <div
-                style={{
-                  fontFamily: 'IBM Plex Sans, sans-serif',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  color: '#6B675E',
-                  marginBottom: '12px',
-                }}
-              >
-                Data Sources
-              </div>
+          {/* Top Rail Header */}
+          <div className="p-3 border-b border-[#DDD8CB] flex items-center justify-between">
+            <span className="text-xs font-mono uppercase tracking-wider text-[#6B665D]">
+              Workspace
+            </span>
+            <button
+              onClick={() => {
+                setActiveConversationId(null);
+                setMessages([]);
+                setMobileSidebarOpen(false);
+              }}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-sans bg-white hover:bg-[#F6F4EF] text-[#22201D] border border-[#DDD8CB] transition-colors"
+              title="Start a new analytical thread"
+            >
+              <Plus size={13} className="text-[#C8501E]" />
+              <span>New Analysis</span>
+            </button>
+          </div>
 
-              {loadingDatasets ? (
-                <div style={{ fontSize: '13px', color: '#6B675E' }}>Loading datasets...</div>
-              ) : datasets.length === 0 ? (
-                <div style={{ fontSize: '13px', color: '#6B675E', marginBottom: '12px' }}>
-                  No CSV files uploaded yet.
+          {/* Section 1: Saved Conversations */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-3">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B665D] block mb-2">
+                Analyses ({conversations.length})
+              </span>
+
+              {loadingConversations ? (
+                <div className="p-3 text-xs text-[#6B665D] italic">Loading threads...</div>
+              ) : conversations.length === 0 ? (
+                <div className="p-3 text-xs text-[#6B665D] border border-dashed border-[#DDD8CB] bg-[#F6F4EF]">
+                  No active analyses. Select tables below to begin.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-                  {datasets.map((d) => (
-                    <div
-                      key={d.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        transition: 'background-color 150ms ease',
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = '#E7E3D8';
-                        const removeBtn = e.currentTarget.querySelector('.remove-btn') as HTMLElement;
-                        if (removeBtn) removeBtn.style.opacity = '1';
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        const removeBtn = e.currentTarget.querySelector('.remove-btn') as HTMLElement;
-                        if (removeBtn) removeBtn.style.opacity = '0';
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', overflow: 'hidden' }}>
-                        <span
-                          style={{
-                            fontSize: '14px',
-                            color: '#1B1B18',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {d.name}
-                        </span>
-                        <span
-                          style={{
-                            fontFamily: 'IBM Plex Mono, monospace',
-                            fontSize: '12px',
-                            color: '#6B675E',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {d.rowCount} rows
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        className="remove-btn"
-                        onClick={(e) => handleRemoveDataset(d.id, e)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#C8501E',
-                          fontSize: '12px',
-                          cursor: 'pointer',
-                          opacity: 0,
-                          padding: '0 4px',
-                          transition: 'opacity 150ms ease',
+                <div className="space-y-1">
+                  {conversations.map((conv) => {
+                    const isActive = conv.id === activeConversationId;
+                    return (
+                      <div
+                        key={conv.id}
+                        onClick={() => {
+                          setActiveConversationId(conv.id);
+                          setMobileSidebarOpen(false);
                         }}
+                        className={`group flex items-center justify-between p-2 text-xs cursor-pointer border transition-colors ${
+                          isActive
+                            ? 'bg-white border-[#22201D] text-[#22201D] font-medium'
+                            : 'bg-transparent border-transparent hover:bg-white/60 text-[#6B665D] hover:text-[#22201D]'
+                        }`}
                       >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                        <div className="flex items-center gap-2 truncate mr-1">
+                          <MessageSquare size={13} className={isActive ? 'text-[#C8501E]' : 'text-[#6B665D]'} />
+                          <span className="truncate">{conv.title}</span>
+                        </div>
+                        <button
+                          onClick={(e) => handleDeleteConversation(conv.id, e)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-[#6B665D] hover:text-[#C8501E] transition-opacity"
+                          title="Delete analysis"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Section 2: Data Sources */}
+            <div className="p-3 border-t border-[#DDD8CB]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B665D]">
+                  Data Sources ({datasets.length})
+                </span>
+                <span className="text-[10px] font-mono text-[#6B665D]">
+                  {selectedDatasetIds.length}/5 selected
+                </span>
+              </div>
+
+              {/* Multi-file Dropzone */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="mb-3 p-3 border border-dashed border-[#DDD8CB] hover:border-[#22201D] bg-[#F6F4EF] hover:bg-white cursor-pointer text-center transition-colors"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => handleFilesChosen(e.target.files)}
+                />
+                <Upload size={14} className="mx-auto mb-1 text-[#C8501E]" />
+                <p className="text-xs font-sans text-[#22201D]">Drop CSVs or click to upload</p>
+                <p className="text-[10px] font-mono text-[#6B665D]">Up to 10 files · 25MB each</p>
+              </div>
+
+              {uploading && (
+                <div className="p-2 mb-3 bg-[#EFECE4] border border-[#DDD8CB] text-xs font-mono text-[#C8501E] animate-pulse">
+                  {uploadMessage || 'Uploading...'}
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                style={{
-                  width: '100%',
-                  height: '36px',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #DDD8CB',
-                  borderRadius: '6px',
-                  fontFamily: 'IBM Plex Sans, sans-serif',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: '#1B1B18',
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                  opacity: uploading ? 0.6 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'background-color 150ms ease, border-color 150ms ease',
-                }}
-                onMouseOver={(e) => {
-                  if (!uploading) e.currentTarget.style.backgroundColor = '#F6F4EF';
-                }}
-                onMouseOut={(e) => {
-                  if (!uploading) e.currentTarget.style.backgroundColor = '#FFFFFF';
-                }}
-              >
-                {uploading ? 'Uploading...' : 'Add CSV'}
-              </button>
-            </div>
-
-            {/* Section 2: Schema */}
-            {datasets.length > 0 && (
-              <div>
-                <div
-                  style={{
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: '#6B675E',
-                    marginBottom: '12px',
-                  }}
-                >
-                  Schema
+              {uploadMessage && !uploading && (
+                <div className="p-2 mb-3 bg-white border border-[#DDD8CB] text-xs font-sans text-[#6B665D] flex items-center justify-between">
+                  <span className="truncate">{uploadMessage}</span>
+                  <X size={12} className="cursor-pointer" onClick={() => setUploadMessage(null)} />
                 </div>
+              )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {datasets.map((d) => {
-                    const isExpanded = !!expandedTables[d.tableName];
+              {/* Datasets List */}
+              {loadingDatasets ? (
+                <div className="p-3 text-xs text-[#6B665D] italic">Loading datasets...</div>
+              ) : datasets.length === 0 ? (
+                <div className="p-3 text-xs text-[#6B665D] italic">No datasets uploaded yet.</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {datasets.map((dataset) => {
+                    const isSelected = selectedDatasetIds.includes(dataset.id);
+                    const isExpanded = !!expandedTables[dataset.tableName];
+
                     return (
-                      <div key={d.id} style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div
-                          onClick={() => toggleTableExpanded(d.tableName)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            cursor: 'pointer',
-                            padding: '4px 0',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                            fontSize: '13px',
-                            color: '#1B1B18',
-                            userSelect: 'none',
-                          }}
-                        >
-                          <span style={{ color: '#6B675E', fontSize: '10px' }}>
-                            {isExpanded ? '▼' : '▶'}
-                          </span>
-                          <span>{d.tableName}</span>
+                      <div key={dataset.id} className="bg-white border border-[#DDD8CB] p-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <div
+                            onClick={() => toggleSelectDataset(dataset.id)}
+                            className="flex items-center gap-2 cursor-pointer truncate mr-1"
+                          >
+                            {isSelected ? (
+                              <CheckSquare size={14} className="text-[#C8501E]" />
+                            ) : (
+                              <Square size={14} className="text-[#6B665D]" />
+                            )}
+                            <span className="font-mono text-[#22201D] font-medium truncate">
+                              {dataset.tableName}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() =>
+                                setExpandedTables((prev) => ({
+                                  ...prev,
+                                  [dataset.tableName]: !prev[dataset.tableName],
+                                }))
+                              }
+                              className="p-1 text-[#6B665D] hover:text-[#22201D]"
+                              title="Toggle schema tree"
+                            >
+                              {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteDataset(dataset.id, e)}
+                              className="p-1 text-[#6B665D] hover:text-[#C8501E]"
+                              title="Delete dataset"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </div>
 
+                        <div className="mt-1 flex items-center gap-2 text-[10px] font-mono text-[#6B665D]">
+                          <span>{dataset.rowCount.toLocaleString()} rows</span>
+                          <span>·</span>
+                          <span>{dataset.columns.length} cols</span>
+                        </div>
+
+                        {/* Schema Column Tree */}
                         {isExpanded && (
-                          <div
-                            style={{
-                              marginLeft: '14px',
-                              paddingLeft: '8px',
-                              borderLeft: '1px solid #DDD8CB',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '4px',
-                              marginTop: '4px',
-                            }}
-                          >
-                            {d.columns.map((col) => (
+                          <div className="mt-2 pt-2 border-t border-[#DDD8CB] space-y-1 pl-1">
+                            {dataset.columns.map((col) => (
                               <div
                                 key={col.name}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  fontFamily: 'IBM Plex Mono, monospace',
-                                  fontSize: '12.5px',
-                                }}
+                                className="flex items-center justify-between text-[11px] font-mono text-[#6B665D]"
                               >
-                                <span style={{ color: '#1B1B18' }}>{col.name}</span>
-                                <span style={{ color: '#6B675E', fontSize: '11px' }}>{col.type}</span>
+                                <span className="truncate">{col.name}</span>
+                                <span className="text-[9px] uppercase px-1 bg-[#F6F4EF] border border-[#DDD8CB]">
+                                  {col.type}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -411,495 +545,308 @@ export const AppPage: React.FC = () => {
                     );
                   })}
                 </div>
-              </div>
-            )}
-
-            {/* Section 3: Past Questions */}
-            {pastQuestions.length > 0 && (
-              <div>
-                <div
-                  style={{
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: '#6B675E',
-                    marginBottom: '12px',
-                  }}
-                >
-                  Past Questions
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {pastQuestions.map((q, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => handleRunQuery(q)}
-                      style={{
-                        padding: '8px',
-                        fontSize: '13px',
-                        color: '#1B1B18',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        transition: 'background-color 150ms ease',
-                      }}
-                      onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#E7E3D8')}
-                      onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      {q}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Footer of the Rail */}
-          <div
-            style={{
-              paddingTop: '16px',
-              borderTop: '1px solid #DDD8CB',
-              fontSize: '12px',
-              color: '#6B675E',
-              fontFamily: 'IBM Plex Sans, sans-serif',
-            }}
-          >
-            Read-only, in-memory DuckDB
+          {/* Bottom Action: Start Analysis */}
+          <div className="p-3 border-t border-[#DDD8CB] bg-[#F6F4EF]">
+            <button
+              onClick={handleStartAnalysis}
+              disabled={selectedDatasetIds.length === 0 || selectedDatasetIds.length > 5}
+              className={`w-full py-2 px-3 text-xs font-sans font-medium border flex items-center justify-center gap-1.5 transition-colors ${
+                selectedDatasetIds.length > 0 && selectedDatasetIds.length <= 5
+                  ? 'bg-[#22201D] text-white border-[#22201D] hover:bg-[#C8501E] hover:border-[#C8501E]'
+                  : 'bg-[#DDD8CB] text-[#6B665D] border-[#DDD8CB] cursor-not-allowed'
+              }`}
+            >
+              <Database size={13} />
+              <span>
+                Start Analysis ({selectedDatasetIds.length} {selectedDatasetIds.length === 1 ? 'table' : 'tables'})
+              </span>
+            </button>
           </div>
         </aside>
 
-        {/* Main Area (scrolls independently, centered 760px column) */}
-        <main
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: '48px 32px 24px 32px',
-            boxSizing: 'border-box',
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '760px',
-              display: 'flex',
-              flexDirection: 'column',
-              flex: 1,
-              justifyContent: 'space-between',
-            }}
-          >
-            {/* Upper Content Area */}
-            <div style={{ marginBottom: '32px' }}>
-              {uploadMessage && (
-                <div
-                  style={{
-                    padding: '12px 16px',
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #DDD8CB',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    color: '#1B1B18',
-                    marginBottom: '24px',
-                  }}
-                >
-                  {uploadMessage}
-                </div>
-              )}
+        {/* Main Analytical Stage (760px Centered Column) */}
+        <main className="flex-1 flex flex-col min-w-0 bg-[#F6F4EF] overflow-y-auto">
+          {/* Mobile Top Navbar Bar */}
+          <div className="p-3 border-b border-[#DDD8CB] flex items-center justify-between md:hidden bg-[#EFECE4]">
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="inline-flex items-center gap-1 text-xs font-mono text-[#22201D] p-1 border border-[#DDD8CB] bg-white"
+            >
+              <Menu size={14} />
+              <span>Workspace</span>
+            </button>
+            <span className="text-xs font-serif truncate max-w-[200px]">
+              {activeConversation ? activeConversation.title : 'New Analysis'}
+            </span>
+          </div>
 
-              {/* EMPTY STATE (no data uploaded yet) */}
-              {datasets.length === 0 ? (
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.style.borderColor = '#C8501E';
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.style.borderColor = '#DDD8CB';
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.style.borderColor = '#DDD8CB';
-                    handleFilesChosen(e.dataTransfer.files);
-                  }}
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    width: '100%',
-                    height: '200px',
-                    border: '1px dashed #DDD8CB',
-                    borderRadius: '6px',
-                    backgroundColor: '#FFFFFF',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    transition: 'border-color 150ms ease',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <span style={{ fontSize: '18px', color: '#1B1B18', fontWeight: 400 }}>
-                    Drop CSV files here
-                  </span>
-                  <span style={{ fontSize: '14px', color: '#C8501E', textDecoration: 'none' }}>
-                    or browse files
-                  </span>
+          {/* Stage Container */}
+          <div className="flex-1 max-w-[800px] w-full mx-auto px-4 py-8">
+            {/* If no conversation is active: Welcome & Setup */}
+            {!activeConversation ? (
+              <div className="my-12 text-center">
+                <div className="inline-flex p-3 bg-white border border-[#DDD8CB] mb-4">
+                  <Database size={28} className="text-[#C8501E]" />
                 </div>
-              ) : answers.length === 0 ? (
-                /* DATA LOADED INITIAL SCREEN */
-                <div>
-                  <h1
-                    style={{
-                      fontFamily: 'Newsreader, Georgia, serif',
-                      fontSize: '40px',
-                      lineHeight: 1.1,
-                      fontWeight: 400,
-                      color: '#1B1B18',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    What do you want to know?
-                  </h1>
-                  <p
-                    style={{
-                      fontSize: '16px',
-                      color: '#6B675E',
-                      marginBottom: '32px',
-                    }}
-                  >
-                    Select an inquiry below or type a custom question in the composer.
-                  </p>
+                <h1 className="text-3xl font-serif text-[#22201D] mb-2">AI Data Analyst Workbench</h1>
+                <p className="text-sm font-sans text-[#6B665D] max-w-md mx-auto mb-6">
+                  Select 1 to 5 tables from your data sources on the left and click{' '}
+                  <strong className="text-[#22201D]">Start Analysis</strong> to initiate an in-memory DuckDB sandbox session.
+                </p>
 
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    {sampleQuestions.map((sq, i) => (
-                      <div
-                        key={i}
-                        onClick={() => handleRunQuery(sq)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '14px 0',
-                          borderBottom: '1px solid #DDD8CB',
-                          cursor: 'pointer',
-                          fontSize: '15px',
-                          color: '#1B1B18',
-                          transition: 'color 150ms ease',
-                        }}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.color = '#C8501E';
-                          const arrow = e.currentTarget.querySelector('.arrow') as HTMLElement;
-                          if (arrow) arrow.style.transform = 'translateX(4px)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.color = '#1B1B18';
-                          const arrow = e.currentTarget.querySelector('.arrow') as HTMLElement;
-                          if (arrow) arrow.style.transform = 'translateX(0)';
-                        }}
-                      >
-                        <span>{sq}</span>
+                {datasets.length === 0 ? (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#22201D] hover:bg-[#C8501E] text-white text-xs font-sans transition-colors"
+                  >
+                    <Upload size={14} />
+                    <span>Upload your first CSV</span>
+                  </button>
+                ) : (
+                  <div className="p-4 bg-white border border-[#DDD8CB] max-w-md mx-auto text-left">
+                    <span className="text-[11px] font-mono text-[#6B665D] uppercase tracking-wider block mb-2">
+                      Available tables for analysis
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      {datasets.map((d) => (
                         <span
-                          className="arrow"
-                          style={{
-                            color: '#C8501E',
-                            transition: 'transform 150ms ease',
-                          }}
+                          key={d.id}
+                          onClick={() => toggleSelectDataset(d.id)}
+                          className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-mono cursor-pointer border transition-colors ${
+                            selectedDatasetIds.includes(d.id)
+                              ? 'bg-[#22201D] text-white border-[#22201D]'
+                              : 'bg-[#F6F4EF] text-[#22201D] border-[#DDD8CB] hover:bg-[#EFECE4]'
+                          }`}
                         >
-                          →
+                          <Layers size={11} />
+                          <span>{d.tableName}</span>
                         </span>
-                      </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={handleStartAnalysis}
+                      disabled={selectedDatasetIds.length === 0}
+                      className="w-full py-2 bg-[#22201D] hover:bg-[#C8501E] text-white text-xs font-sans font-medium transition-colors disabled:bg-[#DDD8CB] disabled:cursor-not-allowed"
+                    >
+                      Analyze Selected ({selectedDatasetIds.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                {/* Conversation Header Sheet */}
+                <div className="mb-8 pb-4 border-b border-[#DDD8CB]">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <h1 className="text-2xl md:text-3xl font-serif text-[#22201D] leading-tight">
+                      {activeConversation.title}
+                    </h1>
+
+                    {activeConversation.readOnly && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-mono bg-[#FBF0EE] text-[#8C2314] border border-[#F3C3BC]">
+                        <AlertCircle size={12} />
+                        <span>Read-Only (Dataset Deleted)</span>
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-[#6B665D]">
+                    <span>Tables in this chat:</span>
+                    {activeTableNames.map((tbl) => (
+                      <span
+                        key={tbl}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-[#DDD8CB] text-[#22201D]"
+                      >
+                        <Layers size={11} className="text-[#C8501E]" />
+                        <span>{tbl}</span>
+                      </span>
                     ))}
                   </div>
                 </div>
-              ) : (
-                /* ANSWER PRESENTATION SHEETS (Signature Element) */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
-                  {answers.map((ans) => (
-                    <article
-                      key={ans.id}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '16px',
-                      }}
-                    >
-                      {/* 1. 2px ink rule */}
-                      <div style={{ height: '2px', backgroundColor: '#1B1B18', width: '100%' }} />
 
-                      {/* 2. User's question as 28px serif headline */}
-                      <h2
-                        style={{
-                          fontFamily: 'Newsreader, Georgia, serif',
-                          fontSize: '28px',
-                          lineHeight: 1.25,
-                          fontWeight: 400,
-                          color: '#1B1B18',
-                          margin: 0,
-                        }}
-                      >
-                        {ans.question}
-                      </h2>
+                {/* Empty State with Suggested Questions */}
+                {messages.length === 0 && !isStreaming && (
+                  <div className="my-8 p-6 bg-white border border-[#DDD8CB]">
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-[#6B665D] block mb-2">
+                      Schema Ready for Inquiry
+                    </span>
+                    <h3 className="text-lg font-serif text-[#22201D] mb-2">
+                      What would you like to uncover across these tables?
+                    </h3>
+                    <p className="text-xs font-sans text-[#6B665D] mb-4">
+                      The analytical agent will inspect column relations, write single-statement DuckDB SQL queries, execute them safely in your sandbox, and graph the results.
+                    </p>
 
-                      {/* 3. Metadata line in 12px secondary sans */}
-                      <div
-                        style={{
-                          fontSize: '12px',
-                          color: '#6B675E',
-                          fontFamily: 'IBM Plex Sans, sans-serif',
-                        }}
-                      >
-                        Tables: {ans.tablesUsed.join(', ')} · Rows returned:{' '}
-                        <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{ans.rowCount}</span> · Time:{' '}
-                        <span style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{ans.durationMs}ms</span>
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B665D] block">
+                        Suggested Starting Points:
+                      </span>
+                      {suggestedQuestions.map((qText, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleSendQuestion(qText)}
+                          className="w-full text-left p-2.5 text-xs font-sans bg-[#F6F4EF] hover:bg-[#EFECE4] border border-[#DDD8CB] text-[#22201D] transition-colors flex items-center justify-between group"
+                        >
+                          <span>{qText}</span>
+                          <ChevronRight size={13} className="text-[#6B665D] group-hover:text-[#22201D]" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Message History Feed */}
+                {loadingMessages ? (
+                  <div className="p-8 text-center text-xs font-mono text-[#6B665D]">
+                    Loading message history...
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {messages.map((msg) => (
+                      <MessageCard key={msg.id} message={msg} tablesUsed={activeTableNames} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Live SSE Streaming Answer Sheet */}
+                {isStreaming && (
+                  <div className="mb-12 bg-white border border-[#DDD8CB] p-6">
+                    {/* Live Progress Bar */}
+                    <div className="flex items-center justify-between border-b border-[#DDD8CB] pb-3 mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-[#C8501E] animate-ping" />
+                        <span className="text-xs font-mono text-[#22201D] font-medium">
+                          {streamStatus || 'Processing...'}
+                        </span>
+                        {streamStep && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 bg-[#EFECE4] border border-[#DDD8CB] text-[#6B665D]">
+                            step {streamStep.index} · {streamStep.name}
+                          </span>
+                        )}
                       </div>
 
-                      {/* 4. One-sentence finding at 17px */}
-                      <p
-                        style={{
-                          fontSize: '17px',
-                          lineHeight: 1.5,
-                          color: '#1B1B18',
-                          margin: 0,
-                        }}
+                      <button
+                        onClick={handleStopStream}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-sans text-[#8C2314] hover:bg-[#FBF0EE] border border-[#F3C3BC] transition-colors"
+                        title="Halt query execution"
                       >
-                        {ans.finding}
-                      </p>
+                        <StopCircle size={13} />
+                        <span>Stop</span>
+                      </button>
+                    </div>
 
-                      {/* 5. Result Table */}
-                      {ans.table && (
-                        <div
-                          style={{
-                            width: '100%',
-                            overflowX: 'auto',
-                            border: '1px solid #DDD8CB',
-                            borderRadius: '6px',
-                            backgroundColor: '#FFFFFF',
-                            marginTop: '8px',
-                          }}
-                        >
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                            <thead>
-                              <tr style={{ height: '40px', borderBottom: '1px solid #DDD8CB' }}>
-                                {ans.table.columns.map((col) => (
-                                  <th
-                                    key={col}
-                                    style={{
-                                      padding: '0 12px',
-                                      fontFamily: 'IBM Plex Sans, sans-serif',
-                                      fontSize: '12px',
-                                      fontWeight: 500,
-                                      textTransform: 'uppercase',
-                                      letterSpacing: '0.06em',
-                                      color: '#6B675E',
-                                    }}
-                                  >
-                                    {col}
-                                  </th>
+                    {/* Live streaming token text */}
+                    {streamingAnswer && (
+                      <div className="prose prose-sm max-w-none text-[#22201D] font-sans text-sm leading-relaxed mb-4">
+                        <p className="whitespace-pre-wrap">{streamingAnswer}</p>
+                      </div>
+                    )}
+
+                    {/* Live SQL preview if arrived */}
+                    {streamingSql && (
+                      <div className="mb-4 p-3 bg-[#22201D] text-[#EFECE4] text-xs font-mono overflow-x-auto">
+                        <span className="text-[10px] uppercase text-[#DDD8CB] block mb-1">Generated SQL:</span>
+                        <pre className="whitespace-pre-wrap">{streamingSql}</pre>
+                      </div>
+                    )}
+
+                    {/* Live Chart preview if arrived */}
+                    {streamingChart && <ChartRenderer spec={streamingChart} />}
+
+                    {/* Live Table if arrived */}
+                    {streamingTable && streamingTable.rows.length > 0 && (
+                      <div className="mb-4 border border-[#DDD8CB] overflow-x-auto max-h-52">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead className="bg-[#EFECE4] sticky top-0 border-b border-[#DDD8CB]">
+                            <tr>
+                              {streamingTable.columns.map((c) => (
+                                <th key={c} className="p-2 font-mono font-medium">
+                                  {c}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {streamingTable.rows.slice(0, 5).map((row, rIdx) => (
+                              <tr key={rIdx} className="border-b border-[#DDD8CB]">
+                                {streamingTable!.columns.map((c) => (
+                                  <td key={c} className="p-2 font-mono text-right text-[#22201D]">
+                                    {String(row[c] ?? '')}
+                                  </td>
                                 ))}
                               </tr>
-                            </thead>
-                            <tbody>
-                              {ans.table.rows.slice(0, 10).map((row, rIdx) => (
-                                <tr
-                                  key={rIdx}
-                                  style={{
-                                    height: '40px',
-                                    borderBottom:
-                                      rIdx < ans.table!.rows.length - 1 ? '1px solid #DDD8CB' : 'none',
-                                  }}
-                                >
-                                  {ans.table!.columns.map((col) => {
-                                    const val = row[col];
-                                    const isNumeric = typeof val === 'number';
-                                    return (
-                                      <td
-                                        key={col}
-                                        style={{
-                                          padding: '0 12px',
-                                          fontSize: '14px',
-                                          color: '#1B1B18',
-                                          textAlign: isNumeric ? 'right' : 'left',
-                                          fontFamily: isNumeric
-                                            ? 'IBM Plex Mono, monospace'
-                                            : 'IBM Plex Sans, sans-serif',
-                                          fontVariantNumeric: 'tabular-nums',
-                                        }}
-                                      >
-                                        {val !== null && val !== undefined ? String(val) : '—'}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                      {/* 6. Collapsed Query disclosure with SQL in mono block */}
-                      <details
-                        style={{
-                          marginTop: '4px',
-                          fontSize: '13px',
-                          color: '#6B675E',
-                          cursor: 'pointer',
-                        }}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+
+          {/* Sticky Composer (At the bottom of the analytical view) */}
+          {activeConversation && !activeConversation.readOnly && (
+            <div className="sticky bottom-0 bg-[#F6F4EF]/95 backdrop-blur-sm border-t border-[#DDD8CB] p-4">
+              <div className="max-w-[800px] w-full mx-auto">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendQuestion();
+                  }}
+                  className="relative flex items-center bg-white border border-[#22201D]"
+                >
+                  <textarea
+                    rows={1}
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendQuestion();
+                      }
+                    }}
+                    disabled={isStreaming}
+                    placeholder={`Ask a question across ${activeTableNames.join(', ')}... (Press Enter)`}
+                    className="flex-1 py-3 pl-4 pr-12 text-sm font-sans bg-transparent text-[#22201D] placeholder-[#6B665D] focus:outline-none resize-none"
+                  />
+                  <div className="absolute right-2 flex items-center">
+                    {isStreaming ? (
+                      <button
+                        type="button"
+                        onClick={handleStopStream}
+                        className="p-1.5 text-[#8C2314] hover:bg-[#FBF0EE] transition-colors"
+                        title="Stop execution"
                       >
-                        <summary
-                          style={{
-                            fontFamily: 'IBM Plex Sans, sans-serif',
-                            fontWeight: 500,
-                            padding: '4px 0',
-                            userSelect: 'none',
-                          }}
-                        >
-                          Query
-                        </summary>
-                        <div
-                          style={{
-                            marginTop: '8px',
-                            padding: '12px',
-                            backgroundColor: '#FFFFFF',
-                            border: '1px solid #DDD8CB',
-                            borderRadius: '6px',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                            fontSize: '13px',
-                            color: '#1B1B18',
-                            overflowX: 'auto',
-                            whiteSpace: 'pre-wrap',
-                          }}
-                        >
-                          {ans.sql}
-                        </div>
-                      </details>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
+                        <StopCircle size={18} />
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={!question.trim()}
+                        className="p-1.5 text-[#22201D] hover:text-[#C8501E] disabled:text-[#DDD8CB] disabled:cursor-not-allowed transition-colors"
+                        title="Submit query"
+                      >
+                        <ArrowUp size={18} />
+                      </button>
+                    )}
+                  </div>
+                </form>
 
-            {/* Pinned Composer Column */}
-            <div style={{ width: '100%', position: 'sticky', bottom: 0, paddingTop: '16px' }}>
-              {queryProgress && (
-                <div
-                  style={{
-                    fontSize: '13px',
-                    color: '#6B675E',
-                    marginBottom: '8px',
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                  }}
-                >
-                  {queryProgress}...
-                </div>
-              )}
-
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #DDD8CB',
-                  borderRadius: '6px',
-                  padding: '16px',
-                  minHeight: '88px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  boxSizing: 'border-box',
-                  position: 'relative',
-                  transition: 'box-shadow 150ms ease, border-color 150ms ease',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#C8501E';
-                  e.currentTarget.style.boxShadow = '0 0 0 2px rgba(200, 80, 30, 0.3)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#DDD8CB';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <textarea
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={
-                    datasets.length === 0
-                      ? 'Upload a CSV above to begin querying'
-                      : 'Ask a question about your data'
-                  }
-                  disabled={datasets.length === 0 || !!queryProgress}
-                  rows={2}
-                  style={{
-                    width: '100%',
-                    border: 'none',
-                    outline: 'none',
-                    resize: 'none',
-                    fontSize: '15px',
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                    color: '#1B1B18',
-                    backgroundColor: 'transparent',
-                    lineHeight: 1.5,
-                  }}
-                />
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginTop: '12px',
-                  }}
-                >
-                  <span style={{ fontSize: '12px', color: '#6B675E', fontFamily: 'IBM Plex Sans, sans-serif' }}>
-                    Enter to run, Shift+Enter for newline
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRunQuery(question)}
-                    disabled={!question.trim() || !!queryProgress || datasets.length === 0}
-                    style={{
-                      height: '36px',
-                      padding: '0 16px',
-                      backgroundColor: '#C8501E',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      fontFamily: 'IBM Plex Sans, sans-serif',
-                      cursor:
-                        !question.trim() || !!queryProgress || datasets.length === 0
-                          ? 'not-allowed'
-                          : 'pointer',
-                      opacity: !question.trim() || !!queryProgress || datasets.length === 0 ? 0.4 : 1,
-                      transition: 'background-color 150ms ease, opacity 150ms ease',
-                    }}
-                    onMouseOver={(e) => {
-                      if (question.trim() && !queryProgress && datasets.length > 0) {
-                        e.currentTarget.style.backgroundColor = '#b04316';
-                      }
-                    }}
-                    onMouseOut={(e) => {
-                      if (question.trim() && !queryProgress && datasets.length > 0) {
-                        e.currentTarget.style.backgroundColor = '#C8501E';
-                      }
-                    }}
-                  >
-                    Run query
-                  </button>
+                <div className="mt-1 flex items-center justify-between text-[10px] font-mono text-[#6B665D]">
+                  <span>Press Enter to send, Shift+Enter for multiline</span>
+                  <span>DuckDB In-Memory Sandbox · Gemini Flash</span>
                 </div>
               </div>
-
-              {/* 24px below composer */}
-              <div style={{ height: '24px' }} />
             </div>
-          </div>
+          )}
         </main>
       </div>
     </div>
