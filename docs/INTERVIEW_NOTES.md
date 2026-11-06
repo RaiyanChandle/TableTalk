@@ -73,6 +73,12 @@ The **AI Data Analyst** allows users to drop in multiple CSV files and immediate
 12. **Tamper-Proof Auditability (`RunLog` + `TraceCollector`)**:
     - *Decision*: Implement a custom LangChain `BaseCallbackHandler` (`TraceCollector`) that captures LLM inputs/outputs, exact tool invocations, duration timings, token metrics, and SQL errors, persisting a complete `RunLog` in MongoDB for every analytical question.
     - *Trade-off*: Adds minor document storage overhead per question, but unlocks full post-hoc explainability, debugging, and dynamic Markdown report generation.
+13. **Dataset Schema Snapshots & Graceful Read-Only Degradation**:
+    - *Decision*: When a Conversation is created, snapshot all dataset column schemas, table names, and row counts into the Conversation document. If a dataset is subsequently deleted by the user, mark associated conversations `readOnly = true` rather than deleting or corrupting historical conversations.
+    - *Trade-off*: Small denormalization of metadata, but allows users to review previous questions, SQL results, charts, and generated reports without data loss even when underlying CSV files have been removed from disk.
+14. **Streaming Protocol via Server-Sent Events (SSE)**:
+    - *Decision*: Use standard SSE over `POST /api/conversations/:id/messages` delivering typed events (`status`, `step`, `sql`, `table`, `chart`, `token`, `done`, `error`).
+    - *Trade-off*: Demands manual `ReadableStream` decoding on the frontend (since native browser `EventSource` lacks POST body support), but provides a lightweight, unidirectional streaming pipe without WebSocket connection management overhead.
 
 ---
 
@@ -118,4 +124,10 @@ The **AI Data Analyst** allows users to drop in multiple CSV files and immediate
 
 **Q: How does the agent self-correct when a generated SQL query contains an error?**
 > **A:** In `runSqlTool`, errors from DuckDB or the SQL validator are caught and formatted as structured error feedback returned to the model as tool output (e.g., `Error: Binder Error: Referenced column "rev" not found. Available columns in "orders": id, customer_id, revenue, created_at`). The agent inspects the schema and available columns, refines its SQL, and tries again. We track execution attempts and enforce a hard limit of 3 tries to prevent infinite retry loops.
+
+**Q: Why choose Server-Sent Events (SSE) over WebSockets for the chat streaming API?**
+> **A:** Data analysis questions follow a discrete request-response paradigm: the user asks a question with JSON parameters, and the server emits an asynchronous stream of progressive steps, SQL queries, table data, tokens, and charts until completion. SSE operates cleanly over standard HTTP/1.1 and HTTP/2 with built-in connection reuse, works seamlessly with reverse proxies, avoids stateful WebSocket handshake overhead, and naturally propagates authentication cookies. On the client, a simple `ReadableStream` reader parses the text chunks into structured event handlers.
+
+**Q: How do you handle dataset deletion when past conversations still reference that dataset?**
+> **A:** When a user creates a conversation, we copy immutable `datasetSnapshots` (column names, types, table names, row counts) into the conversation record. If the user later deletes one of those datasets, we delete the physical file and the `Dataset` document, but mark all conversations containing that dataset ID as `readOnly = true`. This prevents attempting to run new SQL queries on nonexistent disk files, while ensuring all existing messages, SQL queries, charts, and report exports remain 100% readable and auditable.
 

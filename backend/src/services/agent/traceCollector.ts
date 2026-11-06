@@ -5,6 +5,8 @@ import { IRunLogStep } from '../../models/RunLog.js';
 
 export interface TraceCollectorOptions {
   onStep?: (step: IRunLogStep) => void;
+  onToken?: (token: string) => void;
+  onStatus?: (message: string) => void;
 }
 
 export class TraceCollector extends BaseCallbackHandler {
@@ -21,10 +23,20 @@ export class TraceCollector extends BaseCallbackHandler {
   private activeLlmStarts = new Map<string, { startTime: number }>();
   private stepCounter = 0;
   private onStep?: (step: IRunLogStep) => void;
+  private onToken?: (token: string) => void;
+  private onStatus?: (message: string) => void;
 
   constructor(options: TraceCollectorOptions = {}) {
     super();
     this.onStep = options.onStep;
+    this.onToken = options.onToken;
+    this.onStatus = options.onStatus;
+  }
+
+  override async handleLLMNewToken(token: string): Promise<void> {
+    if (token && this.onToken) {
+      this.onToken(token);
+    }
   }
 
   override async handleLLMStart(
@@ -88,6 +100,18 @@ export class TraceCollector extends BaseCallbackHandler {
       input: parsedInput,
       startTime: Date.now(),
     });
+
+    if (this.onStatus) {
+      if (toolName === 'get_schema') {
+        this.onStatus('Inspecting table schemas and relations...');
+      } else if (toolName === 'run_sql') {
+        this.onStatus('Running SQL query on sandbox tables...');
+      } else if (toolName === 'create_chart') {
+        this.onStatus('Generating data visualization chart...');
+      } else {
+        this.onStatus(`Calling tool: ${toolName}...`);
+      }
+    }
   }
 
   override async handleToolEnd(output: string, runId: string): Promise<void> {

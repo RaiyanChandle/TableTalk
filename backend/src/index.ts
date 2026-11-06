@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import healthRouter from './routes/health.js';
 import authRouter from './routes/auth.js';
 import datasetsRouter from './routes/datasets.js';
+import conversationsRouter from './routes/conversations.js';
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use('/api', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/datasets', datasetsRouter);
+app.use('/api/conversations', conversationsRouter);
 
 // Global Error Handler
 app.use(errorHandler);

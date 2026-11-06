@@ -5,7 +5,9 @@ import multer from 'multer';
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
 import { requireAuth } from '../middleware/requireAuth.js';
+import { uploadRateLimiter } from '../middleware/rateLimit.js';
 import { Dataset } from '../models/Dataset.js';
+import { Conversation } from '../models/Conversation.js';
 import { renameDatasetSchema } from '../schemas/index.js';
 import { generateUniqueTableName, sanitizeTableName } from '../services/datasets/tableName.js';
 import { ingestCsv } from '../services/datasets/ingestCsv.js';
@@ -41,6 +43,7 @@ router.use(requireAuth);
 // POST /api/datasets (multi-CSV upload)
 router.post(
   '/',
+  uploadRateLimiter,
   upload.array('files', env.MAX_FILES_PER_UPLOAD),
   async (req: Request, res: Response): Promise<void> => {
     const files = req.files as Express.Multer.File[];
@@ -300,6 +303,12 @@ router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
 
   // Remove DB record
   await dataset.deleteOne();
+
+  // Mark conversations that used this dataset as readOnly
+  await Conversation.updateMany(
+    { datasetIds: dataset._id },
+    { $set: { readOnly: true } }
+  );
 
   res.status(200).json({
     message: 'Dataset deleted successfully',

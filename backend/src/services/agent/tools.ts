@@ -15,6 +15,12 @@ export interface DatasetToolContext {
   columns: { name: string; type: string }[];
 }
 
+export interface AgentCallbacks {
+  onSql?: (data: { sql: string }) => void;
+  onTable?: (data: { columns: string[]; rows: Record<string, unknown>[]; truncated?: boolean; rowCount?: number }) => void;
+  onChart?: (data: any) => void;
+}
+
 export interface AgentExecutionState {
   sqlAttempts: {
     sql: string;
@@ -37,6 +43,7 @@ export interface AgentExecutionState {
     data: Record<string, unknown>[];
   };
   joinsUsed: string[];
+  callbacks?: AgentCallbacks;
 }
 
 /**
@@ -149,6 +156,15 @@ export function createAgentTools(
         const rowsToLlm = env.SQL_ROWS_TO_LLM || 50;
         const previewRows = result.rows.slice(0, rowsToLlm);
 
+        // Notify callbacks if listening
+        state.callbacks?.onSql?.({ sql: input.sql });
+        state.callbacks?.onTable?.({
+          columns: result.columns,
+          rows: previewRows,
+          truncated: result.truncated,
+          rowCount: result.rowCount,
+        });
+
         return JSON.stringify({
           resultId,
           columns: result.columns,
@@ -224,6 +240,8 @@ export function createAgentTools(
         yLabel: input.yLabel,
         data: stored.rows.slice(0, 500),
       };
+
+      state.callbacks?.onChart?.(state.createdChart);
 
       return JSON.stringify({
         ok: true,

@@ -7,7 +7,7 @@ import { IRunLog, RunLog } from '../../models/RunLog.js';
 import { SandboxSession } from '../sandbox/createSandbox.js';
 import { getModel } from './model.js';
 import { getSystemPrompt, PROMPT_VERSION } from './prompt.js';
-import { AgentExecutionState, createAgentTools, DatasetToolContext } from './tools.js';
+import { AgentCallbacks, AgentExecutionState, createAgentTools, DatasetToolContext } from './tools.js';
 import { TraceCollector, TraceCollectorOptions } from './traceCollector.js';
 
 export interface ChatHistoryItem {
@@ -25,6 +25,7 @@ export interface RunAgentParams {
   conversationId: string;
   messageId?: string;
   collectorOptions?: TraceCollectorOptions;
+  callbacks?: AgentCallbacks;
 }
 
 export interface RunAgentResult {
@@ -62,6 +63,7 @@ export async function runAgent(params: RunAgentParams): Promise<RunAgentResult> 
   const state: AgentExecutionState = {
     sqlAttempts: [],
     joinsUsed: [],
+    callbacks: params.callbacks,
   };
 
   const tools = createAgentTools(sandbox, datasets, state);

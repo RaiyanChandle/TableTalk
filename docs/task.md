@@ -115,15 +115,15 @@ Mark items as you finish them.
 
 ### Phase 5 — Conversations, chat API, run logs (1.5 days)
 
-- [ ] `Conversation` model: userId, title, datasetIds[], datasetSnapshots[] (name, tableName, columns), readOnly, createdAt
-- [ ] `Message` model (userId, conversationId, role, content, sql, tablePreview, chartSpec, error, runId, createdAt)
-- [ ] `RunLog` model (see `design.md`): one document per question
-- [ ] `POST /api/conversations` — body `{ datasetIds, title? }`; verify all datasets belong to the user; max 5
-- [ ] `GET /api/conversations`, `GET /api/conversations/:id`, `DELETE /api/conversations/:id`
-- [ ] `POST /api/conversations/:id/messages` — streams SSE: `status`, `step`, `sql`, `table`, `chart`, `token`, `done`, `error`
-- [ ] `GET /api/conversations/:id/messages`
-- [ ] Save the `RunLog` even when the run fails
-- [ ] Rate limits per user for chat and upload
+- [x] `Conversation` model: userId, title, datasetIds[], datasetSnapshots[] (name, tableName, columns), readOnly, createdAt
+- [x] `Message` model (userId, conversationId, role, content, sql, tablePreview, chartSpec, error, runId, createdAt)
+- [x] `RunLog` model (see `design.md`): one document per question
+- [x] `POST /api/conversations` — body `{ datasetIds, title? }`; verify all datasets belong to the user; max 5
+- [x] `GET /api/conversations`, `GET /api/conversations/:id`, `DELETE /api/conversations/:id`
+- [x] `POST /api/conversations/:id/messages` — streams SSE: `status`, `step`, `sql`, `table`, `chart`, `token`, `done`, `error`
+- [x] `GET /api/conversations/:id/messages`
+- [x] Save the `RunLog` even when the run fails
+- [x] Rate limits per user for chat and upload
 
 ### Phase 6 — Chat UI and charts (2 days)
 
