@@ -375,10 +375,12 @@ router.post('/:id/messages', chatRateLimiter, async (req: Request, res: Response
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders?.();
 
   const sendEvent = (event: string, data: unknown) => {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    (res as any).flush?.();
   };
 
   sendEvent('status', { message: 'Initializing analytical sandbox...' });

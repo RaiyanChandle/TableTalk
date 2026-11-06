@@ -20,11 +20,11 @@ const envSchema = z.object({
   BCRYPT_COST: z.coerce.number().default(12),
 
   GOOGLE_API_KEY: z.string().min(1, 'GOOGLE_API_KEY is required'),
-  GEMINI_MODEL: z.string().default('gemini-3.8-flash'),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash'),
   GEMINI_TEMPERATURE: z.coerce.number().default(0),
   GEMINI_MAX_OUTPUT_TOKENS: z.coerce.number().default(2048),
-  LLM_TIMEOUT_MS: z.coerce.number().default(60000),
-  LLM_MAX_RETRIES: z.coerce.number().default(3),
+  LLM_TIMEOUT_MS: z.coerce.number().default(30000),
+  LLM_MAX_RETRIES: z.coerce.number().default(1),
 
   PROMPT_VERSION: z.string().default('v1'),
   AGENT_MAX_STEPS: z.coerce.number().default(12),
