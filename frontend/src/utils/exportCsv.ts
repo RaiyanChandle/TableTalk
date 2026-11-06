@@ -38,3 +38,4 @@ export function exportTableAsCsv(
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+

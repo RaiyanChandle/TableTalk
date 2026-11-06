@@ -186,3 +186,4 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
     </div>
   );
 };
+

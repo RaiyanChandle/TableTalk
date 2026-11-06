@@ -340,7 +340,7 @@ export const AppPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F6F4EF] flex flex-col font-sans text-[#22201D] selection:bg-[#EFECE4]">
+    <div className="h-screen bg-[#F6F4EF] flex flex-col font-sans text-[#22201D] selection:bg-[#EFECE4] overflow-hidden">
       <Navbar />
 
       {/* Main Workspace Frame */}
