@@ -1,158 +1,60 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Database, LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    setMenuOpen(false);
-    await logout();
-    navigate('/login');
+    try {
+      setLoggingOut(true);
+      await logout();
+      navigate('/login');
+    } catch (err) {
+      console.error('Failed to log out:', err);
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [menuOpen]);
-
   return (
-    <header
-      style={{
-        height: '56px',
-        padding: '0 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: '#F6F4EF',
-        borderBottom: '1px solid #DDD8CB',
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <span
-          style={{
-            fontFamily: 'Newsreader, Georgia, serif',
-            fontSize: '20px',
-            fontWeight: 500,
-            color: '#1B1B18',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          ChatQL
-        </span>
+    <header className="h-14 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-xs z-30">
+      {/* Brand */}
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-md bg-[#C8501E] flex items-center justify-center text-white shadow-xs">
+          <Database size={16} />
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="font-semibold text-slate-900 text-base tracking-tight">
+            AI Data Analyst
+          </span>
+          <span className="text-[10px] font-mono uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 font-medium">
+            v1.0
+          </span>
+        </div>
       </div>
 
+      {/* User Actions */}
       {user && (
-        <div style={{ position: 'relative' }} ref={menuRef}>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-md border border-slate-200">
+            <UserIcon size={13} className="text-slate-400" />
+            <span className="font-medium text-slate-700">{user.email}</span>
+          </div>
+
           <button
             type="button"
-            onClick={() => setMenuOpen((prev) => !prev)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              padding: '8px 12px',
-              fontFamily: 'IBM Plex Sans, sans-serif',
-              fontSize: '14px',
-              color: menuOpen ? '#1B1B18' : '#6B675E',
-              cursor: 'pointer',
-              borderRadius: '6px',
-              transition: 'color 150ms ease, background-color 150ms ease',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.color = '#1B1B18';
-              e.currentTarget.style.backgroundColor = '#EFECE4';
-            }}
-            onMouseOut={(e) => {
-              if (!menuOpen) {
-                e.currentTarget.style.color = '#6B675E';
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }
-            }}
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-md transition-colors"
+            title="Log out of session"
           >
-            Account
+            <LogOut size={13} />
+            <span>{loggingOut ? 'Signing out...' : 'Logout'}</span>
           </button>
-
-          {menuOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: 'calc(100% + 4px)',
-                width: '240px',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #DDD8CB',
-                borderRadius: '6px',
-                padding: '12px 16px',
-                zIndex: 100,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: '#6B675E',
-                    marginBottom: '4px',
-                  }}
-                >
-                  Signed In As
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'IBM Plex Sans, sans-serif',
-                    fontSize: '14px',
-                    color: '#1B1B18',
-                    wordBreak: 'break-all',
-                  }}
-                >
-                  {user.email}
-                </div>
-              </div>
-
-              <div style={{ height: '1px', backgroundColor: '#DDD8CB' }} />
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  background: 'none',
-                  border: 'none',
-                  padding: '6px 0',
-                  fontFamily: 'IBM Plex Sans, sans-serif',
-                  fontSize: '14px',
-                  color: '#C8501E',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                  transition: 'color 150ms ease',
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                onMouseOut={(e) => (e.currentTarget.style.textDecoration = 'none')}
-              >
-                Sign out
-              </button>
-            </div>
-          )}
         </div>
       )}
     </header>

@@ -6,10 +6,12 @@ import {
   ChevronDown,
   ChevronRight,
   Database,
+  FileText,
   Layers,
   MessageSquare,
-  Plus,
+  Sparkles,
   StopCircle,
+  Table,
   Trash2,
   Upload,
   X,
@@ -30,8 +32,11 @@ import { generateSuggestedQuestions } from '../utils/suggestedQuestions';
 import type { Conversation, Dataset, Message, TablePreview, ChartSpec } from '../types';
 
 export const AppPage: React.FC = () => {
-  // Mobile sidebar state
+  // Mobile responsive sidebar
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Tab switcher: 'chat' | 'report'
+  const [activeTab, setActiveTab] = useState<'chat' | 'report'>('chat');
 
   // Datasets state
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -50,7 +55,7 @@ export const AppPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // Query composer state
+  // Composer & streaming state
   const [question, setQuestion] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamStatus, setStreamStatus] = useState<string | null>(null);
@@ -82,7 +87,7 @@ export const AppPage: React.FC = () => {
     return activeConversation.datasetSnapshots.map((s) => s.tableName);
   }, [activeConversation]);
 
-  // Load initial datasets and conversations
+  // Load initial workspace data
   const loadData = async () => {
     try {
       setLoadingDatasets(true);
@@ -94,12 +99,12 @@ export const AppPage: React.FC = () => {
       setDatasets(fetchedDatasets);
       setConversations(fetchedConversations);
 
-      // Pre-select up to 5 datasets if none selected yet
+      // Pre-select up to 5 datasets if none selected
       if (fetchedDatasets.length > 0) {
         setSelectedDatasetIds(fetchedDatasets.slice(0, 5).map((d) => d.id));
       }
 
-      // Auto-select latest conversation if available
+      // Auto-select latest conversation
       if (fetchedConversations.length > 0 && !activeConversationId) {
         setActiveConversationId(fetchedConversations[0].id);
       }
@@ -142,13 +147,13 @@ export const AppPage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingAnswer, streamStatus]);
 
-  // Handle CSV file upload
+  // Multi-CSV upload handler
   const handleFilesChosen = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const fileArray = Array.from(files);
 
     setUploading(true);
-    setUploadMessage('Ingesting and parsing CSV files with DuckDB...');
+    setUploadMessage('Ingesting CSV files with DuckDB...');
 
     try {
       const results = await uploadDatasetsApi(fileArray);
@@ -166,7 +171,6 @@ export const AppPage: React.FC = () => {
       const updated = await getDatasetsApi();
       setDatasets(updated);
 
-      // Automatically select newly uploaded datasets
       if (successful.length > 0) {
         const newIds = successful.map((s) => s.dataset!.id);
         setSelectedDatasetIds((prev) => Array.from(new Set([...prev, ...newIds])).slice(0, 5));
@@ -188,18 +192,17 @@ export const AppPage: React.FC = () => {
         return prev.filter((dId) => dId !== id);
       }
       if (prev.length >= 5) {
-        return prev; // capped at 5 datasets
+        return prev;
       }
       return [...prev, id];
     });
   };
 
-  // Delete a dataset
+  // Delete dataset
   const handleDeleteDataset = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this dataset? Referenced conversations will become read-only.')) {
-      return;
-    }
+    if (!window.confirm('Delete this dataset? Conversations using it will become read-only.')) return;
+
     try {
       await deleteDatasetApi(id);
       setSelectedDatasetIds((prev) => prev.filter((dId) => dId !== id));
@@ -214,7 +217,7 @@ export const AppPage: React.FC = () => {
     }
   };
 
-  // Create a new conversation from checked datasets
+  // Create conversation from checked datasets
   const handleStartAnalysis = async () => {
     if (selectedDatasetIds.length === 0 || selectedDatasetIds.length > 5) return;
 
@@ -247,7 +250,7 @@ export const AppPage: React.FC = () => {
     }
   };
 
-  // Send question and start SSE stream
+  // Send question and stream response
   const handleSendQuestion = async (queryText?: string) => {
     const textToSend = (queryText || question).trim();
     if (!textToSend || !activeConversationId || isStreaming || activeConversation?.readOnly) {
@@ -263,7 +266,7 @@ export const AppPage: React.FC = () => {
     setStreamingTable(null);
     setStreamingChart(null);
 
-    // Optimistically add user message
+    // Optimistically add user question
     const tempUserMsg: Message = {
       id: `temp_${Date.now()}`,
       conversationId: activeConversationId,
@@ -302,10 +305,8 @@ export const AppPage: React.FC = () => {
           onDone: async () => {
             setIsStreaming(false);
             setStreamStatus(null);
-            // Refresh messages list from DB for complete consistency
             const msgs = await getMessagesApi(activeConversationId);
             setMessages(msgs);
-            // Refresh conversation title in sidebar if updated
             const updatedConvs = await getConversationsApi();
             setConversations(updatedConvs);
           },
@@ -334,7 +335,6 @@ export const AppPage: React.FC = () => {
     }
   };
 
-  // Abort running stream
   const handleStopStream = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -344,12 +344,12 @@ export const AppPage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen bg-[#F6F4EF] flex flex-col font-sans text-[#22201D] selection:bg-[#EFECE4] overflow-hidden">
+    <div className="h-screen bg-slate-50 flex flex-col font-sans text-slate-900 overflow-hidden">
       <Navbar />
 
-      {/* Main Workspace Frame */}
+      {/* Main Dual-Pane Workspace */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Mobile Sidebar Overlay */}
+        {/* Mobile Overlay */}
         {mobileSidebarOpen && (
           <div
             className="fixed inset-0 bg-black/40 z-40 md:hidden"
@@ -357,227 +357,170 @@ export const AppPage: React.FC = () => {
           />
         )}
 
-        {/* Left Rail (300px) */}
+        {/* Left Sidebar (w-80) matching docs/design.md */}
         <aside
-          className={`fixed md:static inset-y-0 left-0 z-50 w-80 bg-[#EFECE4] border-r border-[#DDD8CB] flex flex-col transform transition-transform duration-200 ease-in-out md:translate-x-0 ${
+          className={`fixed md:static inset-y-0 left-0 z-50 w-80 bg-white border-r border-slate-200 flex flex-col transform transition-transform duration-200 ease-in-out md:translate-x-0 ${
             mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          {/* Top Rail Header */}
-          <div className="p-3 border-b border-[#DDD8CB] flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wider text-[#6B665D]">
-              Workspace
-            </span>
-            <button
-              onClick={() => {
-                setActiveConversationId(null);
-                setMessages([]);
-                setMobileSidebarOpen(false);
-              }}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-sans bg-white hover:bg-[#F6F4EF] text-[#22201D] border border-[#DDD8CB] transition-colors"
-              title="Start a new analytical thread"
-            >
-              <Plus size={13} className="text-[#C8501E]" />
-              <span>New Analysis</span>
-            </button>
+          {/* Section 1: Datasets */}
+          <div className="p-4 border-b border-slate-200 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-800 uppercase tracking-wider">
+                <Table size={14} className="text-[#C8501E]" />
+                <span>Datasets</span>
+                <span className="text-[11px] font-mono text-slate-400 font-normal">
+                  ({selectedDatasetIds.length}/{datasets.length})
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md shadow-2xs transition-colors"
+                title="Upload up to 10 CSVs"
+              >
+                <Upload size={12} className="text-[#C8501E]" />
+                <span>{uploading ? 'Uploading...' : '+ Upload CSVs'}</span>
+              </button>
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => handleFilesChosen(e.target.files)}
+            />
+
+            {uploadMessage && (
+              <div className="p-2 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 flex items-center justify-between">
+                <span className="truncate">{uploadMessage}</span>
+                <X size={12} className="cursor-pointer text-slate-400 hover:text-slate-700" onClick={() => setUploadMessage(null)} />
+              </div>
+            )}
           </div>
 
-          {/* Section 1: Saved Conversations */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-3">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B665D] block mb-2">
-                Analyses ({conversations.length})
-              </span>
+          {/* Datasets Checklist (Scrollable) */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {loadingDatasets ? (
+              <div className="p-4 text-xs text-slate-400 italic text-center">Loading datasets...</div>
+            ) : datasets.length === 0 ? (
+              <div className="p-4 border border-dashed border-slate-200 rounded-lg text-center bg-slate-50">
+                <p className="text-xs text-slate-600 font-medium mb-1">No tables loaded</p>
+                <p className="text-[11px] text-slate-400 mb-3">Upload CSV files to begin ad-hoc analysis.</p>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 bg-[#C8501E] text-white text-xs font-medium rounded shadow-2xs hover:bg-[#b04518]"
+                >
+                  Choose CSVs
+                </button>
+              </div>
+            ) : (
+              datasets.map((dataset) => {
+                const isChecked = selectedDatasetIds.includes(dataset.id);
+                const isExpanded = !!expandedTables[dataset.tableName];
 
-              {loadingConversations ? (
-                <div className="p-3 text-xs text-[#6B665D] italic">Loading threads...</div>
-              ) : conversations.length === 0 ? (
-                <div className="p-3 text-xs text-[#6B665D] border border-dashed border-[#DDD8CB] bg-[#F6F4EF]">
-                  No active analyses. Select tables below to begin.
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {conversations.map((conv) => {
-                    const isActive = conv.id === activeConversationId;
-                    return (
+                return (
+                  <div
+                    key={dataset.id}
+                    className={`rounded-lg border transition-all p-2.5 text-xs bg-white ${
+                      isChecked
+                        ? 'border-slate-800 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
                       <div
-                        key={conv.id}
-                        onClick={() => {
-                          setActiveConversationId(conv.id);
-                          setMobileSidebarOpen(false);
-                        }}
-                        className={`group flex items-center justify-between p-2 text-xs cursor-pointer border transition-colors ${
-                          isActive
-                            ? 'bg-white border-[#22201D] text-[#22201D] font-medium'
-                            : 'bg-transparent border-transparent hover:bg-white/60 text-[#6B665D] hover:text-[#22201D]'
-                        }`}
+                        onClick={() => toggleSelectDataset(dataset.id)}
+                        className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0 mr-1"
                       >
-                        <div className="flex items-center gap-2 truncate mr-1">
-                          <MessageSquare size={13} className={isActive ? 'text-[#C8501E]' : 'text-[#6B665D]'} />
-                          <span className="truncate">{conv.title}</span>
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                            isChecked
+                              ? 'bg-[#C8501E] border-[#C8501E] text-white'
+                              : 'bg-white border-slate-300 hover:border-slate-400'
+                          }`}
+                        >
+                          {isChecked && <Check size={11} strokeWidth={3} />}
                         </div>
+                        <span
+                          className={`font-mono truncate ${
+                            isChecked ? 'text-slate-900 font-semibold' : 'text-slate-600'
+                          }`}
+                        >
+                          {dataset.tableName}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
-                          onClick={(e) => handleDeleteConversation(conv.id, e)}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-[#6B665D] hover:text-[#C8501E] transition-opacity"
-                          title="Delete analysis"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedTables((prev) => ({
+                              ...prev,
+                              [dataset.tableName]: !prev[dataset.tableName],
+                            }));
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-700"
+                          title="Toggle schema tree"
+                        >
+                          {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteDataset(dataset.id, e)}
+                          className="p-1 text-slate-400 hover:text-red-600"
+                          title="Delete dataset"
                         >
                           <Trash2 size={12} />
                         </button>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                    </div>
 
-            {/* Section 2: Data Sources */}
-            <div className="p-3 border-t border-[#DDD8CB]">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B665D]">
-                  Data Sources ({datasets.length})
-                </span>
-                <span className="text-[10px] font-mono text-[#6B665D]">
-                  {selectedDatasetIds.length}/5 selected
-                </span>
-              </div>
+                    <div className="mt-1 pl-6.5 flex items-center gap-2 text-[11px] font-mono text-slate-400">
+                      <span>{dataset.rowCount.toLocaleString()} rows</span>
+                      <span>·</span>
+                      <span>{dataset.columns.length} cols</span>
+                    </div>
 
-              {/* Multi-file Dropzone */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="mb-3 p-3 border border-dashed border-[#DDD8CB] hover:border-[#22201D] bg-[#F6F4EF] hover:bg-white cursor-pointer text-center transition-colors"
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".csv,text/csv"
-                  className="hidden"
-                  onChange={(e) => handleFilesChosen(e.target.files)}
-                />
-                <Upload size={14} className="mx-auto mb-1 text-[#C8501E]" />
-                <p className="text-xs font-sans text-[#22201D]">Drop CSVs or click to upload</p>
-                <p className="text-[10px] font-mono text-[#6B665D]">Up to 10 files · 25MB each</p>
-              </div>
-
-              {uploading && (
-                <div className="p-2 mb-3 bg-[#EFECE4] border border-[#DDD8CB] text-xs font-mono text-[#C8501E] animate-pulse">
-                  {uploadMessage || 'Uploading...'}
-                </div>
-              )}
-
-              {uploadMessage && !uploading && (
-                <div className="p-2 mb-3 bg-white border border-[#DDD8CB] text-xs font-sans text-[#6B665D] flex items-center justify-between">
-                  <span className="truncate">{uploadMessage}</span>
-                  <X size={12} className="cursor-pointer" onClick={() => setUploadMessage(null)} />
-                </div>
-              )}
-
-              {/* Datasets List */}
-              {loadingDatasets ? (
-                <div className="p-3 text-xs text-[#6B665D] italic">Loading datasets...</div>
-              ) : datasets.length === 0 ? (
-                <div className="p-3 text-xs text-[#6B665D] italic">No datasets uploaded yet.</div>
-              ) : (
-                <div className="space-y-2">
-                  {datasets.map((dataset) => {
-                    const isSelected = selectedDatasetIds.includes(dataset.id);
-                    const isExpanded = !!expandedTables[dataset.tableName];
-
-                    return (
-                      <div
-                        key={dataset.id}
-                        className={`bg-white border transition-colors p-2.5 text-xs ${
-                          isSelected ? 'border-[#22201D]' : 'border-[#DDD8CB] hover:border-[#6B665D]'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
+                    {/* Expandable Schema Columns */}
+                    {isExpanded && (
+                      <div className="mt-2 pt-2 border-t border-slate-100 space-y-1 pl-6.5">
+                        {dataset.columns.map((col) => (
                           <div
-                            onClick={() => toggleSelectDataset(dataset.id)}
-                            className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0 mr-2"
+                            key={col.name}
+                            className="flex items-center justify-between text-[11px] font-mono text-slate-500"
                           >
-                            <div
-                              className={`w-4 h-4 border flex items-center justify-center shrink-0 transition-colors ${
-                                isSelected
-                                  ? 'bg-[#C8501E] border-[#C8501E] text-white'
-                                  : 'bg-white border-[#DDD8CB] hover:border-[#22201D]'
-                              }`}
-                            >
-                              {isSelected && <Check size={11} strokeWidth={3} />}
-                            </div>
-                            <span
-                              className={`font-mono truncate ${
-                                isSelected ? 'text-[#22201D] font-semibold' : 'text-[#6B665D]'
-                              }`}
-                            >
-                              {dataset.tableName}
+                            <span className="truncate mr-2">{col.name}</span>
+                            <span className="text-[9px] uppercase px-1 py-0.2 bg-slate-100 rounded text-slate-600">
+                              {col.type}
                             </span>
                           </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setExpandedTables((prev) => ({
-                                  ...prev,
-                                  [dataset.tableName]: !prev[dataset.tableName],
-                                }));
-                              }}
-                              className="p-1 text-[#6B665D] hover:text-[#22201D]"
-                              title="Toggle schema tree"
-                            >
-                              {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => handleDeleteDataset(dataset.id, e)}
-                              className="p-1 text-[#6B665D] hover:text-[#C8501E]"
-                              title="Delete dataset"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="mt-1.5 pl-6 flex items-center gap-2 text-[10px] font-mono text-[#6B665D]">
-                          <span>{dataset.rowCount.toLocaleString()} rows</span>
-                          <span>·</span>
-                          <span>{dataset.columns.length} cols</span>
-                        </div>
-
-                        {/* Schema Column Tree */}
-                        {isExpanded && (
-                          <div className="mt-2.5 pt-2 border-t border-[#DDD8CB] space-y-1 pl-6">
-                            {dataset.columns.map((col) => (
-                              <div
-                                key={col.name}
-                                className="flex items-center justify-between text-[11px] font-mono text-[#6B665D]"
-                              >
-                                <span className="truncate mr-2">{col.name}</span>
-                                <span className="text-[9px] uppercase px-1.5 py-0.2 bg-[#F6F4EF] border border-[#DDD8CB]">
-                                  {col.type}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
 
-          {/* Bottom Action: Start Analysis */}
-          <div className="p-3 border-t border-[#DDD8CB] bg-[#F6F4EF]">
+          {/* Start Analysis CTA Button */}
+          <div className="p-3 border-t border-slate-200 bg-white">
             <button
+              type="button"
               onClick={handleStartAnalysis}
               disabled={selectedDatasetIds.length === 0 || selectedDatasetIds.length > 5}
-              className={`w-full py-2 px-3 text-xs font-sans font-medium border flex items-center justify-center gap-1.5 transition-colors ${
+              className={`w-full py-2.5 px-3 text-xs font-medium rounded-md flex items-center justify-center gap-2 transition-colors shadow-xs ${
                 selectedDatasetIds.length > 0 && selectedDatasetIds.length <= 5
-                  ? 'bg-[#22201D] text-white border-[#22201D] hover:bg-[#C8501E] hover:border-[#C8501E]'
-                  : 'bg-[#DDD8CB] text-[#6B665D] border-[#DDD8CB] cursor-not-allowed'
+                  ? 'bg-slate-900 text-white hover:bg-[#C8501E]'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
               }`}
             >
               <Database size={13} />
@@ -586,277 +529,319 @@ export const AppPage: React.FC = () => {
               </span>
             </button>
           </div>
+
+          {/* Section 2: Saved Conversations */}
+          <div className="border-t border-slate-200 bg-slate-50/60 p-3 max-h-56 overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                Conversations ({conversations.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveConversationId(null);
+                  setMessages([]);
+                  setMobileSidebarOpen(false);
+                }}
+                className="text-[11px] font-medium text-[#C8501E] hover:underline"
+              >
+                + New
+              </button>
+            </div>
+
+            {loadingConversations ? (
+              <div className="text-xs text-slate-400 italic">Loading...</div>
+            ) : conversations.length === 0 ? (
+              <div className="text-[11px] text-slate-400 italic">No saved conversations yet.</div>
+            ) : (
+              <div className="space-y-1">
+                {conversations.map((conv) => {
+                  const isActive = conv.id === activeConversationId;
+                  return (
+                    <div
+                      key={conv.id}
+                      onClick={() => {
+                        setActiveConversationId(conv.id);
+                        setMobileSidebarOpen(false);
+                      }}
+                      className={`group flex items-center justify-between p-2 rounded-md text-xs cursor-pointer transition-colors ${
+                        isActive
+                          ? 'bg-white text-slate-900 font-semibold shadow-2xs border border-slate-200'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate mr-1">
+                        <MessageSquare size={13} className={isActive ? 'text-[#C8501E]' : 'text-slate-400'} />
+                        <span className="truncate">{conv.title}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteConversation(conv.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-600 transition-opacity"
+                        title="Delete conversation"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </aside>
 
-        {/* Main Analytical Stage (760px Centered Column) */}
-        <main className="flex-1 flex flex-col min-w-0 bg-[#F6F4EF] overflow-y-auto">
-          {/* Mobile Top Navbar Bar */}
-          <div className="p-3 border-b border-[#DDD8CB] flex items-center justify-between md:hidden bg-[#EFECE4]">
+        {/* Main Stage (Chat / Report) */}
+        <main className="flex-1 flex flex-col min-w-0 bg-slate-50 h-full overflow-hidden">
+          {/* Mobile Header */}
+          <div className="p-3 border-b border-slate-200 flex items-center justify-between md:hidden bg-white">
             <button
+              type="button"
               onClick={() => setMobileSidebarOpen(true)}
-              className="inline-flex items-center gap-1 text-xs font-mono text-[#22201D] p-1 border border-[#DDD8CB] bg-white"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700 px-2 py-1 border border-slate-200 rounded bg-slate-50"
             >
               <Menu size={14} />
               <span>Workspace</span>
             </button>
-            <span className="text-xs font-serif truncate max-w-[200px]">
+            <span className="text-xs font-semibold truncate max-w-[200px]">
               {activeConversation ? activeConversation.title : 'New Analysis'}
             </span>
           </div>
 
-          {/* Stage Container */}
-          <div className="flex-1 max-w-[800px] w-full mx-auto px-4 py-8">
-            {/* If no conversation is active: Welcome & Setup */}
-            {!activeConversation ? (
-              <div className="my-12 text-center">
-                <div className="inline-flex p-3 bg-white border border-[#DDD8CB] mb-4">
-                  <Database size={28} className="text-[#C8501E]" />
-                </div>
-                <h1 className="text-3xl font-serif text-[#22201D] mb-2">AI Data Analyst Workbench</h1>
-                <p className="text-sm font-sans text-[#6B665D] max-w-md mx-auto mb-6">
-                  Select 1 to 5 tables from your data sources on the left and click{' '}
-                  <strong className="text-[#22201D]">Start Analysis</strong> to initiate an in-memory DuckDB sandbox session.
-                </p>
-
-                {datasets.length === 0 ? (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#22201D] hover:bg-[#C8501E] text-white text-xs font-sans transition-colors"
+          {/* Top Stage Header matching docs/design.md */}
+          <div className="bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-slate-500">Tables in this chat:</span>
+              {activeTableNames.length > 0 ? (
+                activeTableNames.map((tbl) => (
+                  <span
+                    key={tbl}
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-mono font-medium bg-slate-50 text-slate-700 rounded-md border border-slate-200"
                   >
-                    <Upload size={14} />
-                    <span>Upload your first CSV</span>
-                  </button>
-                ) : (
-                  <div className="p-6 bg-white border border-[#DDD8CB] max-w-lg mx-auto text-left shadow-none">
-                    <div className="flex items-center justify-between mb-3 border-b border-[#DDD8CB] pb-2">
-                      <span className="text-[11px] font-mono text-[#6B665D] uppercase tracking-wider">
-                        Available tables for analysis
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (selectedDatasetIds.length === datasets.length) {
-                            setSelectedDatasetIds([]);
-                          } else {
-                            setSelectedDatasetIds(datasets.slice(0, 5).map((d) => d.id));
-                          }
-                        }}
-                        className="text-[11px] font-mono text-[#C8501E] hover:underline"
-                      >
-                        {selectedDatasetIds.length === datasets.length ? 'Deselect all' : 'Select all'}
-                      </button>
-                    </div>
+                    <Layers size={11} className="text-[#C8501E]" />
+                    <span>{tbl}</span>
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs font-mono text-slate-400 italic">None selected</span>
+              )}
 
-                    <div className="flex flex-wrap gap-2 mb-6">
-                      {datasets.map((d) => {
-                        const isChecked = selectedDatasetIds.includes(d.id);
-                        return (
-                          <button
-                            key={d.id}
-                            type="button"
-                            onClick={() => toggleSelectDataset(d.id)}
-                            className={`inline-flex items-center gap-2 px-3 py-2 text-xs font-mono border transition-all ${
-                              isChecked
-                                ? 'bg-[#22201D] text-white border-[#22201D]'
-                                : 'bg-[#F6F4EF] hover:bg-[#EFECE4] text-[#22201D] border-[#DDD8CB]'
-                            }`}
-                          >
-                            <div
-                              className={`w-3.5 h-3.5 border flex items-center justify-center shrink-0 ${
-                                isChecked
-                                  ? 'bg-[#C8501E] border-[#C8501E] text-white'
-                                  : 'bg-white border-[#DDD8CB]'
-                              }`}
-                            >
-                              {isChecked && <Check size={10} strokeWidth={3} />}
-                            </div>
-                            <span>{d.tableName}</span>
-                            <span className={`text-[10px] ${isChecked ? 'text-neutral-400' : 'text-[#6B665D]'}`}>
-                              ({d.rowCount} rows)
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+              {activeConversation?.readOnly && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded">
+                  <AlertCircle size={11} />
+                  <span>Read-only</span>
+                </span>
+              )}
+            </div>
 
-                    <button
-                      onClick={handleStartAnalysis}
-                      disabled={selectedDatasetIds.length === 0}
-                      className="w-full py-2.5 bg-[#22201D] hover:bg-[#C8501E] text-white text-xs font-sans font-medium transition-colors disabled:bg-[#DDD8CB] disabled:text-[#6B665D] disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      <Database size={13} />
-                      <span>
-                        Start Analysis ({selectedDatasetIds.length} {selectedDatasetIds.length === 1 ? 'table' : 'tables'})
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div>
-                {/* Conversation Header Sheet */}
-                <div className="mb-8 pb-4 border-b border-[#DDD8CB]">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                    <h1 className="text-2xl md:text-3xl font-serif text-[#22201D] leading-tight">
-                      {activeConversation.title}
-                    </h1>
-
-                    {activeConversation.readOnly && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-mono bg-[#FBF0EE] text-[#8C2314] border border-[#F3C3BC]">
-                        <AlertCircle size={12} />
-                        <span>Read-Only (Dataset Deleted)</span>
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-[#6B665D]">
-                    <span>Tables in this chat:</span>
-                    {activeTableNames.map((tbl) => (
-                      <span
-                        key={tbl}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-[#DDD8CB] text-[#22201D]"
-                      >
-                        <Layers size={11} className="text-[#C8501E]" />
-                        <span>{tbl}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Empty State with Suggested Questions */}
-                {messages.length === 0 && !isStreaming && (
-                  <div className="my-8 p-6 bg-white border border-[#DDD8CB]">
-                    <span className="text-[11px] font-mono uppercase tracking-wider text-[#6B665D] block mb-2">
-                      Schema Ready for Inquiry
-                    </span>
-                    <h3 className="text-lg font-serif text-[#22201D] mb-2">
-                      What would you like to uncover across these tables?
-                    </h3>
-                    <p className="text-xs font-sans text-[#6B665D] mb-4">
-                      The analytical agent will inspect column relations, write single-statement DuckDB SQL queries, execute them safely in your sandbox, and graph the results.
-                    </p>
-
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B665D] block">
-                        Suggested Starting Points:
-                      </span>
-                      {suggestedQuestions.map((qText, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleSendQuestion(qText)}
-                          className="w-full text-left p-2.5 text-xs font-sans bg-[#F6F4EF] hover:bg-[#EFECE4] border border-[#DDD8CB] text-[#22201D] transition-colors flex items-center justify-between group"
-                        >
-                          <span>{qText}</span>
-                          <ChevronRight size={13} className="text-[#6B665D] group-hover:text-[#22201D]" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Message History Feed */}
-                {loadingMessages ? (
-                  <div className="p-8 text-center text-xs font-mono text-[#6B665D]">
-                    Loading message history...
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {messages.map((msg) => (
-                      <MessageCard key={msg.id} message={msg} tablesUsed={activeTableNames} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Live SSE Streaming Answer Sheet */}
-                {isStreaming && (
-                  <div className="mb-12 bg-white border border-[#DDD8CB] p-6">
-                    {/* Live Progress Bar */}
-                    <div className="flex items-center justify-between border-b border-[#DDD8CB] pb-3 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block w-2 h-2 rounded-full bg-[#C8501E] animate-ping" />
-                        <span className="text-xs font-mono text-[#22201D] font-medium">
-                          {streamStatus || 'Processing...'}
-                        </span>
-                        {streamStep && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 bg-[#EFECE4] border border-[#DDD8CB] text-[#6B665D]">
-                            step {streamStep.index} · {streamStep.name}
-                          </span>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={handleStopStream}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-sans text-[#8C2314] hover:bg-[#FBF0EE] border border-[#F3C3BC] transition-colors"
-                        title="Halt query execution"
-                      >
-                        <StopCircle size={13} />
-                        <span>Stop</span>
-                      </button>
-                    </div>
-
-                    {/* Live streaming token text */}
-                    {streamingAnswer && (
-                      <div className="prose prose-sm max-w-none text-[#22201D] font-sans text-sm leading-relaxed mb-4">
-                        <p className="whitespace-pre-wrap">{streamingAnswer}</p>
-                      </div>
-                    )}
-
-                    {/* Live SQL preview if arrived */}
-                    {streamingSql && (
-                      <div className="mb-4 p-3 bg-[#22201D] text-[#EFECE4] text-xs font-mono overflow-x-auto">
-                        <span className="text-[10px] uppercase text-[#DDD8CB] block mb-1">Generated SQL:</span>
-                        <pre className="whitespace-pre-wrap">{streamingSql}</pre>
-                      </div>
-                    )}
-
-                    {/* Live Chart preview if arrived */}
-                    {streamingChart && <ChartRenderer spec={streamingChart} />}
-
-                    {/* Live Table if arrived */}
-                    {streamingTable && streamingTable.rows.length > 0 && (
-                      <div className="mb-4 border border-[#DDD8CB] overflow-x-auto max-h-52">
-                        <table className="w-full text-left text-xs border-collapse">
-                          <thead className="bg-[#EFECE4] sticky top-0 border-b border-[#DDD8CB]">
-                            <tr>
-                              {streamingTable.columns.map((c) => (
-                                <th key={c} className="p-2 font-mono font-medium">
-                                  {c}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {streamingTable.rows.slice(0, 5).map((row, rIdx) => (
-                              <tr key={rIdx} className="border-b border-[#DDD8CB]">
-                                {streamingTable!.columns.map((c) => (
-                                  <td key={c} className="p-2 font-mono text-right text-[#22201D]">
-                                    {String(row[c] ?? '')}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-            )}
+            {/* [Chat] and [Report] Tabs per docs/design.md */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab('chat')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  activeTab === 'chat'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <MessageSquare size={13} />
+                <span>Chat</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('report')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  activeTab === 'report'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileText size={13} />
+                <span>Report</span>
+              </button>
+            </div>
           </div>
 
-          {/* Sticky Composer (At the bottom of the analytical view) */}
+          {/* Stage Body */}
+          <div className="flex-1 overflow-y-auto p-6 flex flex-col">
+            <div className="max-w-3xl w-full mx-auto flex-1 flex flex-col">
+              {/* Tab 2: Living Analysis Report */}
+              {activeTab === 'report' ? (
+                <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-2xs my-auto text-center">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 text-[#C8501E] flex items-center justify-center mx-auto mb-3">
+                    <FileText size={22} />
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-1">
+                    Living Analysis Report
+                  </h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto mb-4 leading-relaxed">
+                    The deterministic report documents all questions, DuckDB SQL queries, execution durations, and schemas used during this conversation.
+                  </p>
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-md text-left text-xs font-mono space-y-1 mb-4">
+                    <p className="font-semibold text-slate-700"># Analysis Report — {activeConversation?.title || 'Untitled'}</p>
+                    <p className="text-slate-500">Generated: {new Date().toLocaleString()}</p>
+                    <p className="text-slate-500">Tables: {activeTableNames.join(', ') || 'none'}</p>
+                    <p className="text-slate-500">Inquiries: {messages.filter((m) => m.role === 'user').length} questions logged</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('chat')}
+                    className="px-4 py-2 bg-slate-900 text-white text-xs font-medium rounded-md hover:bg-slate-800"
+                  >
+                    Return to Chat
+                  </button>
+                </div>
+              ) : (
+                /* Tab 1: Chat Feed */
+                <div className="flex-1 flex flex-col justify-between">
+                  {/* Empty State */}
+                  {!activeConversation || (messages.length === 0 && !isStreaming) ? (
+                    <div className="my-auto py-12 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 text-[#C8501E] flex items-center justify-center mx-auto mb-4 shadow-2xs">
+                        <Sparkles size={24} />
+                      </div>
+                      <h2 className="text-xl font-semibold text-slate-900 mb-2">
+                        {activeConversation ? activeConversation.title : 'Ask questions across your data'}
+                      </h2>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
+                        The agent inspects table relations, writes single-statement DuckDB SQL queries, executes them in your sandbox, and creates charts.
+                      </p>
+
+                      {/* Suggested Questions Pills */}
+                      {suggestedQuestions.length > 0 && (
+                        <div className="max-w-xl mx-auto space-y-2 text-left">
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block px-1">
+                            Suggested Inquiries:
+                          </span>
+                          <div className="grid gap-2">
+                            {suggestedQuestions.map((qText, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleSendQuestion(qText)}
+                                className="w-full text-left p-3 text-xs font-medium bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg text-slate-800 transition-all flex items-center justify-between group shadow-2xs"
+                              >
+                                <span>{qText}</span>
+                                <ChevronRight size={14} className="text-slate-400 group-hover:text-slate-700" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Messages List */
+                    <div className="space-y-4 pb-6">
+                      {loadingMessages ? (
+                        <div className="p-8 text-center text-xs font-mono text-slate-400">
+                          Loading message history...
+                        </div>
+                      ) : (
+                        messages.map((msg) => (
+                          <MessageCard key={msg.id} message={msg} tablesUsed={activeTableNames} />
+                        ))
+                      )}
+
+                      {/* Live SSE Streaming Answer Sheet */}
+                      {isStreaming && (
+                        <div className="flex gap-3 mb-8 items-start">
+                          <div className="w-8 h-8 rounded-full bg-[#C8501E] text-white flex items-center justify-center shrink-0 mt-0.5 animate-pulse shadow-2xs">
+                            <Sparkles size={15} />
+                          </div>
+
+                          <div className="flex-1 bg-white border border-slate-200 rounded-lg p-5 shadow-2xs">
+                            {/* Live Status Bar */}
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-block w-2 h-2 rounded-full bg-[#C8501E] animate-ping" />
+                                <span className="text-xs font-medium text-slate-800">
+                                  {streamStatus || 'Processing...'}
+                                </span>
+                                {streamStep && (
+                                  <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-100 rounded text-slate-600">
+                                    step {streamStep.index} · {streamStep.name}
+                                  </span>
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={handleStopStream}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded transition-colors"
+                                title="Stop query execution"
+                              >
+                                <StopCircle size={13} />
+                                <span>Stop</span>
+                              </button>
+                            </div>
+
+                            {/* Streaming Prose */}
+                            {streamingAnswer && (
+                              <div className="prose prose-sm max-w-none text-slate-800 text-sm leading-relaxed mb-4">
+                                <p className="whitespace-pre-wrap">{streamingAnswer}</p>
+                              </div>
+                            )}
+
+                            {/* Streaming SQL */}
+                            {streamingSql && (
+                              <div className="mb-4 rounded-md border border-slate-800 bg-slate-900 text-slate-100 p-3 text-xs font-mono overflow-x-auto">
+                                <span className="text-[10px] uppercase text-slate-400 block mb-1">Generated SQL:</span>
+                                <pre className="whitespace-pre-wrap">{streamingSql}</pre>
+                              </div>
+                            )}
+
+                            {/* Streaming Chart */}
+                            {streamingChart && <ChartRenderer spec={streamingChart} />}
+
+                            {/* Streaming Table */}
+                            {streamingTable && streamingTable.rows.length > 0 && (
+                              <div className="mb-4 border border-slate-200 rounded overflow-x-auto max-h-52">
+                                <table className="w-full text-left text-xs border-collapse">
+                                  <thead className="bg-slate-100 sticky top-0 border-b border-slate-200">
+                                    <tr>
+                                      {streamingTable.columns.map((c) => (
+                                        <th key={c} className="p-2 font-mono font-semibold text-slate-700">
+                                          {c}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {streamingTable.rows.slice(0, 5).map((row, rIdx) => (
+                                      <tr key={rIdx}>
+                                        {streamingTable!.columns.map((c) => (
+                                          <td key={c} className="p-2 font-mono text-right text-slate-900">
+                                            {String(row[c] ?? '')}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div ref={messagesEndRef} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sticky Bottom Composer */}
           {activeConversation && !activeConversation.readOnly && (
-            <div className="sticky bottom-0 bg-[#F6F4EF]/95 backdrop-blur-sm border-t border-[#DDD8CB] p-4">
-              <div className="max-w-[800px] w-full mx-auto">
+            <div className="bg-white border-t border-slate-200 px-6 py-4 shrink-0 shadow-xs">
+              <div className="max-w-3xl w-full mx-auto">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     handleSendQuestion();
                   }}
-                  className="relative flex items-center bg-white border border-[#22201D]"
+                  className="relative flex items-center bg-slate-50 border border-slate-300 focus-within:border-slate-800 rounded-lg transition-colors shadow-2xs"
                 >
                   <textarea
                     rows={1}
@@ -869,15 +854,15 @@ export const AppPage: React.FC = () => {
                       }
                     }}
                     disabled={isStreaming}
-                    placeholder={`Ask a question across ${activeTableNames.join(', ')}... (Press Enter)`}
-                    className="flex-1 py-3 pl-4 pr-12 text-sm font-sans bg-transparent text-[#22201D] placeholder-[#6B665D] focus:outline-none resize-none"
+                    placeholder={`Ask a question about ${activeTableNames.join(', ')}…`}
+                    className="flex-1 py-3 pl-4 pr-12 text-sm bg-transparent text-slate-900 placeholder-slate-400 focus:outline-none resize-none"
                   />
-                  <div className="absolute right-2 flex items-center">
+                  <div className="absolute right-2.5 flex items-center">
                     {isStreaming ? (
                       <button
                         type="button"
                         onClick={handleStopStream}
-                        className="p-1.5 text-[#8C2314] hover:bg-[#FBF0EE] transition-colors"
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                         title="Stop execution"
                       >
                         <StopCircle size={18} />
@@ -886,18 +871,18 @@ export const AppPage: React.FC = () => {
                       <button
                         type="submit"
                         disabled={!question.trim()}
-                        className="p-1.5 text-[#22201D] hover:text-[#C8501E] disabled:text-[#DDD8CB] disabled:cursor-not-allowed transition-colors"
+                        className="p-1.5 bg-slate-900 text-white rounded-md hover:bg-[#C8501E] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors shadow-2xs"
                         title="Submit query"
                       >
-                        <ArrowUp size={18} />
+                        <ArrowUp size={16} />
                       </button>
                     )}
                   </div>
                 </form>
 
-                <div className="mt-1 flex items-center justify-between text-[10px] font-mono text-[#6B665D]">
-                  <span>Press Enter to send, Shift+Enter for multiline</span>
-                  <span>DuckDB In-Memory Sandbox · Gemini Flash</span>
+                <div className="mt-1.5 flex items-center justify-between text-[11px] font-mono text-slate-400 px-1">
+                  <span>Enter to send · Shift+Enter for new line</span>
+                  <span>DuckDB Sandbox · Gemini Flash</span>
                 </div>
               </div>
             </div>
