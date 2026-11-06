@@ -114,14 +114,8 @@ a:hover {
   text-decoration: underline;
 }
 
-button {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 500;
-  border-radius: var(--radius-default);
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: var(--transition-fast);
+button, input, textarea {
+  font-family: inherit;
 }
 
 button:focus-visible, input:focus-visible, textarea:focus-visible {

@@ -2,14 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowUp,
-  CheckSquare,
+  Check,
   ChevronDown,
   ChevronRight,
   Database,
   Layers,
   MessageSquare,
   Plus,
-  Square,
   StopCircle,
   Trash2,
   Upload,
@@ -94,6 +93,11 @@ export const AppPage: React.FC = () => {
       ]);
       setDatasets(fetchedDatasets);
       setConversations(fetchedConversations);
+
+      // Pre-select up to 5 datasets if none selected yet
+      if (fetchedDatasets.length > 0) {
+        setSelectedDatasetIds(fetchedDatasets.slice(0, 5).map((d) => d.id));
+      }
 
       // Auto-select latest conversation if available
       if (fetchedConversations.length > 0 && !activeConversationId) {
@@ -353,9 +357,9 @@ export const AppPage: React.FC = () => {
           />
         )}
 
-        {/* Left Rail (280px) */}
+        {/* Left Rail (300px) */}
         <aside
-          className={`fixed md:static inset-y-0 left-0 z-50 w-72 bg-[#EFECE4] border-r border-[#DDD8CB] flex flex-col transform transition-transform duration-200 ease-in-out md:translate-x-0 ${
+          className={`fixed md:static inset-y-0 left-0 z-50 w-80 bg-[#EFECE4] border-r border-[#DDD8CB] flex flex-col transform transition-transform duration-200 ease-in-out md:translate-x-0 ${
             mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -474,42 +478,58 @@ export const AppPage: React.FC = () => {
               ) : datasets.length === 0 ? (
                 <div className="p-3 text-xs text-[#6B665D] italic">No datasets uploaded yet.</div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {datasets.map((dataset) => {
                     const isSelected = selectedDatasetIds.includes(dataset.id);
                     const isExpanded = !!expandedTables[dataset.tableName];
 
                     return (
-                      <div key={dataset.id} className="bg-white border border-[#DDD8CB] p-2 text-xs">
+                      <div
+                        key={dataset.id}
+                        className={`bg-white border transition-colors p-2.5 text-xs ${
+                          isSelected ? 'border-[#22201D]' : 'border-[#DDD8CB] hover:border-[#6B665D]'
+                        }`}
+                      >
                         <div className="flex items-center justify-between">
                           <div
                             onClick={() => toggleSelectDataset(dataset.id)}
-                            className="flex items-center gap-2 cursor-pointer truncate mr-1"
+                            className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0 mr-2"
                           >
-                            {isSelected ? (
-                              <CheckSquare size={14} className="text-[#C8501E]" />
-                            ) : (
-                              <Square size={14} className="text-[#6B665D]" />
-                            )}
-                            <span className="font-mono text-[#22201D] font-medium truncate">
+                            <div
+                              className={`w-4 h-4 border flex items-center justify-center shrink-0 transition-colors ${
+                                isSelected
+                                  ? 'bg-[#C8501E] border-[#C8501E] text-white'
+                                  : 'bg-white border-[#DDD8CB] hover:border-[#22201D]'
+                              }`}
+                            >
+                              {isSelected && <Check size={11} strokeWidth={3} />}
+                            </div>
+                            <span
+                              className={`font-mono truncate ${
+                                isSelected ? 'text-[#22201D] font-semibold' : 'text-[#6B665D]'
+                              }`}
+                            >
                               {dataset.tableName}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 shrink-0">
                             <button
-                              onClick={() =>
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setExpandedTables((prev) => ({
                                   ...prev,
                                   [dataset.tableName]: !prev[dataset.tableName],
-                                }))
-                              }
+                                }));
+                              }}
                               className="p-1 text-[#6B665D] hover:text-[#22201D]"
                               title="Toggle schema tree"
                             >
                               {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                             </button>
                             <button
+                              type="button"
                               onClick={(e) => handleDeleteDataset(dataset.id, e)}
                               className="p-1 text-[#6B665D] hover:text-[#C8501E]"
                               title="Delete dataset"
@@ -519,7 +539,7 @@ export const AppPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="mt-1 flex items-center gap-2 text-[10px] font-mono text-[#6B665D]">
+                        <div className="mt-1.5 pl-6 flex items-center gap-2 text-[10px] font-mono text-[#6B665D]">
                           <span>{dataset.rowCount.toLocaleString()} rows</span>
                           <span>·</span>
                           <span>{dataset.columns.length} cols</span>
@@ -527,14 +547,14 @@ export const AppPage: React.FC = () => {
 
                         {/* Schema Column Tree */}
                         {isExpanded && (
-                          <div className="mt-2 pt-2 border-t border-[#DDD8CB] space-y-1 pl-1">
+                          <div className="mt-2.5 pt-2 border-t border-[#DDD8CB] space-y-1 pl-6">
                             {dataset.columns.map((col) => (
                               <div
                                 key={col.name}
                                 className="flex items-center justify-between text-[11px] font-mono text-[#6B665D]"
                               >
-                                <span className="truncate">{col.name}</span>
-                                <span className="text-[9px] uppercase px-1 bg-[#F6F4EF] border border-[#DDD8CB]">
+                                <span className="truncate mr-2">{col.name}</span>
+                                <span className="text-[9px] uppercase px-1.5 py-0.2 bg-[#F6F4EF] border border-[#DDD8CB]">
                                   {col.type}
                                 </span>
                               </div>
@@ -607,32 +627,67 @@ export const AppPage: React.FC = () => {
                     <span>Upload your first CSV</span>
                   </button>
                 ) : (
-                  <div className="p-4 bg-white border border-[#DDD8CB] max-w-md mx-auto text-left">
-                    <span className="text-[11px] font-mono text-[#6B665D] uppercase tracking-wider block mb-2">
-                      Available tables for analysis
-                    </span>
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {datasets.map((d) => (
-                        <span
-                          key={d.id}
-                          onClick={() => toggleSelectDataset(d.id)}
-                          className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-mono cursor-pointer border transition-colors ${
-                            selectedDatasetIds.includes(d.id)
-                              ? 'bg-[#22201D] text-white border-[#22201D]'
-                              : 'bg-[#F6F4EF] text-[#22201D] border-[#DDD8CB] hover:bg-[#EFECE4]'
-                          }`}
-                        >
-                          <Layers size={11} />
-                          <span>{d.tableName}</span>
-                        </span>
-                      ))}
+                  <div className="p-6 bg-white border border-[#DDD8CB] max-w-lg mx-auto text-left shadow-none">
+                    <div className="flex items-center justify-between mb-3 border-b border-[#DDD8CB] pb-2">
+                      <span className="text-[11px] font-mono text-[#6B665D] uppercase tracking-wider">
+                        Available tables for analysis
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedDatasetIds.length === datasets.length) {
+                            setSelectedDatasetIds([]);
+                          } else {
+                            setSelectedDatasetIds(datasets.slice(0, 5).map((d) => d.id));
+                          }
+                        }}
+                        className="text-[11px] font-mono text-[#C8501E] hover:underline"
+                      >
+                        {selectedDatasetIds.length === datasets.length ? 'Deselect all' : 'Select all'}
+                      </button>
                     </div>
+
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {datasets.map((d) => {
+                        const isChecked = selectedDatasetIds.includes(d.id);
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => toggleSelectDataset(d.id)}
+                            className={`inline-flex items-center gap-2 px-3 py-2 text-xs font-mono border transition-all ${
+                              isChecked
+                                ? 'bg-[#22201D] text-white border-[#22201D]'
+                                : 'bg-[#F6F4EF] hover:bg-[#EFECE4] text-[#22201D] border-[#DDD8CB]'
+                            }`}
+                          >
+                            <div
+                              className={`w-3.5 h-3.5 border flex items-center justify-center shrink-0 ${
+                                isChecked
+                                  ? 'bg-[#C8501E] border-[#C8501E] text-white'
+                                  : 'bg-white border-[#DDD8CB]'
+                              }`}
+                            >
+                              {isChecked && <Check size={10} strokeWidth={3} />}
+                            </div>
+                            <span>{d.tableName}</span>
+                            <span className={`text-[10px] ${isChecked ? 'text-neutral-400' : 'text-[#6B665D]'}`}>
+                              ({d.rowCount} rows)
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     <button
                       onClick={handleStartAnalysis}
                       disabled={selectedDatasetIds.length === 0}
-                      className="w-full py-2 bg-[#22201D] hover:bg-[#C8501E] text-white text-xs font-sans font-medium transition-colors disabled:bg-[#DDD8CB] disabled:cursor-not-allowed"
+                      className="w-full py-2.5 bg-[#22201D] hover:bg-[#C8501E] text-white text-xs font-sans font-medium transition-colors disabled:bg-[#DDD8CB] disabled:text-[#6B665D] disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      Analyze Selected ({selectedDatasetIds.length})
+                      <Database size={13} />
+                      <span>
+                        Start Analysis ({selectedDatasetIds.length} {selectedDatasetIds.length === 1 ? 'table' : 'tables'})
+                      </span>
                     </button>
                   </div>
                 )}
