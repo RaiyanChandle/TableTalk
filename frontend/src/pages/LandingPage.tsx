@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   BarChart3,
-  ChevronDown,
   Code,
   Database,
   Play,
@@ -56,38 +55,18 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* 2. Top Navigation Bar */}
-      <header className="relative z-10 max-w-6xl w-full mx-auto px-6 py-3 flex items-center justify-between">
+      <header className="relative z-10 max-w-6xl w-full mx-auto px-6 py-3.5 flex items-center justify-between">
         {/* Brand */}
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-[#D05C2B] flex items-center justify-center text-white shadow-2xs transition-transform group-hover:scale-105">
-            <Database size={18} strokeWidth={2.4} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="TableTalk Logo"
+            className="h-10 md:h-12 w-auto object-contain select-none"
+          />
           <span className="font-serif font-bold text-2xl text-[#261C14] tracking-tight">
             TableTalk
           </span>
         </Link>
-
-        {/* Center Menu Links (Desktop) */}
-        <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-[#4A443A]">
-          <button type="button" className="inline-flex items-center gap-1 hover:text-[#261C14] transition-colors">
-            <span>Product</span>
-            <ChevronDown size={14} className="opacity-60" />
-          </button>
-          <button type="button" className="inline-flex items-center gap-1 hover:text-[#261C14] transition-colors">
-            <span>Use Cases</span>
-            <ChevronDown size={14} className="opacity-60" />
-          </button>
-          <button type="button" className="inline-flex items-center gap-1 hover:text-[#261C14] transition-colors">
-            <span>Integrations</span>
-            <ChevronDown size={14} className="opacity-60" />
-          </button>
-          <a href="#pricing" className="hover:text-[#261C14] transition-colors">
-            Pricing
-          </a>
-          <a href="#docs" className="hover:text-[#261C14] transition-colors">
-            Docs
-          </a>
-        </nav>
 
         {/* Right Action Buttons */}
         <div className="flex items-center gap-3">
