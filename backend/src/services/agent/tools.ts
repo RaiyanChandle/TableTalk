@@ -61,7 +61,8 @@ export interface AgentExecutionState {
 export function createAgentTools(
   sandbox: SandboxSession,
   datasets: DatasetToolContext[],
-  state: AgentExecutionState
+  state: AgentExecutionState,
+  auditContext?: { userId?: string; conversationId?: string }
 ) {
   // Pre-calculate candidate joins across the selected datasets
   const candidateJoins: CandidateJoin[] = findCandidateJoins(datasets);
@@ -161,6 +162,11 @@ export function createAgentTools(
           durationMs,
         });
 
+        // Structured SQL audit logging (Rule 5.7: userId, conversationId, duration, rowCount; NO raw data)
+        console.log(
+          `[SQL Audit] userId=${auditContext?.userId || 'anonymous'} conversationId=${auditContext?.conversationId || 'none'} status=ok durationMs=${durationMs} rowCount=${result.rowCount} truncated=${result.truncated} sql="${input.sql.replace(/\s+/g, ' ').trim()}"`
+        );
+
         // Limit preview rows shown to LLM to prevent context overflow (default 50)
         const rowsToLlm = env.SQL_ROWS_TO_LLM || 50;
         const previewRows = result.rows.slice(0, rowsToLlm);
@@ -195,6 +201,11 @@ export function createAgentTools(
           error: errorMessage,
           durationMs,
         });
+
+        // Structured SQL audit logging for failed queries
+        console.log(
+          `[SQL Audit] userId=${auditContext?.userId || 'anonymous'} conversationId=${auditContext?.conversationId || 'none'} status=${isTimeout ? 'timeout' : isRejected ? 'rejected' : 'error'} durationMs=${durationMs} error="${errorMessage.replace(/\s+/g, ' ').trim()}" sql="${input.sql.replace(/\s+/g, ' ').trim()}"`
+        );
 
         return JSON.stringify({
           error: `${errorMessage} (Attempt ${attemptIndex} of ${maxAttempts})`,

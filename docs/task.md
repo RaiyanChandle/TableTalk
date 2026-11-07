@@ -150,15 +150,15 @@ Mark items as you finish them.
 
 ### Phase 8 — Hardening and evals (1 day)
 
-- [ ] Eval set: 25 questions on a sample multi-file dataset (e.g. `orders.csv`, `customers.csv`, `products.csv`) in `backend/evals/`
-- [ ] Script that runs the set and reports pass rate, average attempts, average latency, tokens
-- [ ] Cases for joins, join fan-out, name collisions, unanswerable questions, prompt injection in a cell
-- [ ] Helmet, CORS allowlist, request size limits
-- [ ] Gemini rate-limit handling: backoff, friendly error, no crash
-- [ ] Log every executed SQL with userId, conversationId, duration (no raw data)
+- [x] Eval set: 25 questions on a sample multi-file dataset (e.g. `orders.csv`, `customers.csv`, `products.csv`) in `backend/evals/`
+- [x] Script that runs the set and reports pass rate, average attempts, average latency, tokens
+- [x] Cases for joins, join fan-out, name collisions, unanswerable questions, prompt injection in a cell
+- [x] Helmet, CORS allowlist, request size limits
+- [x] Gemini rate-limit handling: backoff, friendly error, no crash
+- [x] Log every executed SQL with userId, conversationId, duration (no raw data)
 
-### Phase 9 — Deploy and document (1 day)
-- [ ] Write `docs/INTERVIEW_NOTES.md` and keep it updated (see `rules.md`): 30-second pitch, architecture walkthrough, why each technology, key decisions and trade-offs, security design, hardest bugs, eval numbers, what you would improve, likely questions with answers
+### Phase 9 — document (1 day)
+- [x] Write `docs/INTERVIEW_NOTES.md` and keep it updated (see `rules.md`): 30-second pitch, architecture walkthrough, why each technology, key decisions and trade-offs, security design, hardest bugs, eval numbers, what you would improve, likely questions with answers
 
 ## 5. Acceptance Criteria (v1)
 

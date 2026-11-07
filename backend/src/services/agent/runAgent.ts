@@ -75,7 +75,7 @@ export async function runAgent(params: RunAgentParams): Promise<RunAgentResult> 
     callbacks: params.callbacks,
   };
 
-  const tools = createAgentTools(sandbox, datasets, state);
+  const tools = createAgentTools(sandbox, datasets, state, { userId, conversationId });
   const model = getModel();
   const systemPrompt = getSystemPrompt();
 
@@ -110,32 +110,72 @@ export async function runAgent(params: RunAgentParams): Promise<RunAgentResult> 
   let finalAnswer = '';
   let runStatus: 'success' | 'failed' | 'aborted' = 'success';
 
-  try {
-    const result = await agent.invoke(
-      { messages },
-      {
-        callbacks: [collector],
-        recursionLimit: env.AGENT_MAX_STEPS || 12,
-      }
+  // Helper to identify rate limit, quota exhaustion, or service unavailability
+  const isRateLimitOrTransient = (err: any): boolean => {
+    const msg = (err?.message || '').toLowerCase();
+    const status = err?.status || err?.statusCode || err?.code;
+    return (
+      status === 429 ||
+      status === 503 ||
+      msg.includes('429') ||
+      msg.includes('resource_exhausted') ||
+      msg.includes('quota') ||
+      msg.includes('rate limit') ||
+      msg.includes('overloaded') ||
+      msg.includes('service unavailable')
     );
+  };
 
-    const outMessages = result.messages;
-    const lastMsg = outMessages[outMessages.length - 1];
+  // Invoke agent with exponential backoff for transient rate limits
+  const maxRateLimitRetries = 2;
+  let lastError: any = null;
 
-    if (typeof lastMsg.content === 'string') {
-      finalAnswer = lastMsg.content;
-    } else if (Array.isArray(lastMsg.content)) {
-      finalAnswer = lastMsg.content
-        .map((part: any) => (typeof part === 'string' ? part : part?.text || ''))
-        .join('');
+  for (let attempt = 0; attempt <= maxRateLimitRetries; attempt++) {
+    try {
+      const result = await agent.invoke(
+        { messages },
+        {
+          callbacks: [collector],
+          recursionLimit: env.AGENT_MAX_STEPS || 12,
+        }
+      );
+
+      const outMessages = result.messages;
+      const lastMsg = outMessages[outMessages.length - 1];
+
+      if (typeof lastMsg.content === 'string') {
+        finalAnswer = lastMsg.content;
+      } else if (Array.isArray(lastMsg.content)) {
+        finalAnswer = lastMsg.content
+          .map((part: any) => (typeof part === 'string' ? part : part?.text || ''))
+          .join('');
+      }
+
+      if (!finalAnswer) {
+        finalAnswer = 'Unable to generate an answer for this question with the available datasets.';
+      }
+
+      lastError = null;
+      break;
+    } catch (err: any) {
+      lastError = err;
+      if (attempt < maxRateLimitRetries && isRateLimitOrTransient(err)) {
+        const backoffDelay = 1500 * Math.pow(2, attempt);
+        console.warn(`[Agent] Gemini rate-limit encountered. Backing off for ${backoffDelay}ms before retry ${attempt + 1}/${maxRateLimitRetries}...`);
+        await new Promise((res) => setTimeout(res, backoffDelay));
+        continue;
+      }
+      break;
     }
+  }
 
-    if (!finalAnswer) {
-      finalAnswer = 'Unable to generate an answer for this question with the available datasets.';
-    }
-  } catch (err: any) {
+  if (lastError) {
     runStatus = 'failed';
-    finalAnswer = `Analysis stopped: ${err?.message || 'An error occurred during agent execution.'}`;
+    if (isRateLimitOrTransient(lastError)) {
+      finalAnswer = 'The AI analytics service is currently experiencing high demand or rate limits. Please try again in a few moments.';
+    } else {
+      finalAnswer = `Analysis stopped: ${lastError?.message || 'An error occurred during agent execution.'}`;
+    }
   }
 
   const totalDurationMs = Date.now() - startTime;
@@ -153,12 +193,12 @@ export async function runAgent(params: RunAgentParams): Promise<RunAgentResult> 
   // Build and save the RunLog document in MongoDB
   const runLogDoc = new RunLog({
     runId,
-    userId: new mongoose.Types.ObjectId(userId),
-    conversationId: new mongoose.Types.ObjectId(conversationId),
-    messageId: messageId ? new mongoose.Types.ObjectId(messageId) : undefined,
+    userId: mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+    conversationId: mongoose.Types.ObjectId.isValid(conversationId) ? new mongoose.Types.ObjectId(conversationId) : new mongoose.Types.ObjectId(),
+    messageId: messageId && mongoose.Types.ObjectId.isValid(messageId) ? new mongoose.Types.ObjectId(messageId) : undefined,
     question,
     datasets: datasets.map((d) => ({
-      datasetId: new mongoose.Types.ObjectId(d.datasetId),
+      datasetId: mongoose.Types.ObjectId.isValid(d.datasetId) ? new mongoose.Types.ObjectId(d.datasetId) : new mongoose.Types.ObjectId(),
       filename: d.filename,
       tableName: d.tableName,
       rowCount: d.rowCount,
