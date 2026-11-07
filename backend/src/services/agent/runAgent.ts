@@ -180,11 +180,26 @@ export async function runAgent(params: RunAgentParams): Promise<RunAgentResult> 
 
   const totalDurationMs = Date.now() - startTime;
 
+  // Helper to convert any native BigInt in row objects into standard numbers or strings
+  const sanitizeRows = (rows: Record<string, unknown>[]): Record<string, unknown>[] => {
+    return rows.map((row) => {
+      const clean: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(row)) {
+        if (typeof v === 'bigint') {
+          clean[k] = Number(v);
+        } else {
+          clean[k] = v;
+        }
+      }
+      return clean;
+    });
+  };
+
   // Build table preview (first 20 rows per design.md rules)
   const tablePreview = state.lastSqlResult
     ? {
         columns: state.lastSqlResult.columns,
-        rows: state.lastSqlResult.rows.slice(0, 20),
+        rows: sanitizeRows(state.lastSqlResult.rows.slice(0, 20)),
         rowCount: state.lastSqlResult.rowCount,
         truncated: state.lastSqlResult.truncated,
       }
@@ -251,11 +266,12 @@ export async function runAgent(params: RunAgentParams): Promise<RunAgentResult> 
     createdAt: new Date(),
   });
 
-  // Attempt to save RunLog to DB; if MongoDB is unavailable in unit testing, ignore
+  // Attempt to save RunLog to DB; log errors if saving fails
   try {
     await runLogDoc.save();
-  } catch (_e) {
-    // Non-fatal if DB is disconnected in mock/test runs
+    console.log(`[RunLog] Saved run log for question: "${question.slice(0, 40)}" (runId: ${runId})`);
+  } catch (err: any) {
+    console.error('[RunLog] Failed to save RunLog document in MongoDB:', err?.message || err);
   }
 
   return {

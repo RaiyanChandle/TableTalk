@@ -103,7 +103,12 @@ const runLogSchema = new Schema<IRunLog>(
         filename: { type: String, required: true },
         tableName: { type: String, required: true },
         rowCount: { type: Number, required: true },
-        columns: [{ name: String, type: String }],
+        columns: [
+          {
+            name: { type: String, required: true },
+            type: { type: String, required: true },
+          },
+        ],
       },
     ],
     model: {
