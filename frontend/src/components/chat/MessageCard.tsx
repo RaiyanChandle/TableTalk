@@ -13,9 +13,10 @@ import {
   Info,
   Code,
 } from 'lucide-react';
-import type { Message } from '../../types';
+import type { Message, RunLog } from '../../types';
 import { ChartRenderer } from './ChartRenderer';
 import { exportTableAsCsv } from '../../utils/exportCsv';
+import { getRunsApi } from '../../api/conversations';
 
 interface MessageCardProps {
   message: Message;
@@ -26,6 +27,26 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
   const [showSql, setShowSql] = useState(false);
   const [showTrace, setShowTrace] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
+  const [runLog, setRunLog] = useState<RunLog | null>(null);
+  const [loadingTrace, setLoadingTrace] = useState(false);
+
+  const toggleTrace = async () => {
+    if (!showTrace && !runLog && message.runId && message.conversationId) {
+      try {
+        setLoadingTrace(true);
+        const runs = await getRunsApi(message.conversationId);
+        const match = runs.find((r) => r.runId === message.runId);
+        if (match) {
+          setRunLog(match);
+        }
+      } catch (err) {
+        console.error('Failed to fetch run trace:', err);
+      } finally {
+        setLoadingTrace(false);
+      }
+    }
+    setShowTrace(!showTrace);
+  };
 
   // User Message: Rendered as the Inquiry Section of an Editorial Report Sheet
   if (message.role === 'user') {
@@ -162,7 +183,7 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
           {message.runId && (
             <button
               type="button"
-              onClick={() => setShowTrace(!showTrace)}
+              onClick={toggleTrace}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono bg-[#FAF9F6] hover:bg-[#EFECE4] text-[#6E6A60] border border-[#DDD8CB] rounded transition-colors"
             >
               <Info size={12} />
@@ -205,19 +226,79 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
 
       {/* Collapsible Audit Run Trace Drawer */}
       {showTrace && message.runId && (
-        <div className="mb-4 p-3.5 bg-[#FAF9F6] border border-[#DDD8CB] rounded text-xs font-mono space-y-1.5 text-[#6E6A60]">
-          <div className="flex items-center justify-between font-semibold text-[#1F1E1B] pb-1 border-b border-[#DDD8CB]">
+        <div className="mb-4 p-4 bg-[#FAF9F6] border border-[#DDD8CB] rounded text-xs font-mono space-y-3 text-[#6E6A60]">
+          <div className="flex items-center justify-between font-semibold text-[#1F1E1B] pb-2 border-b border-[#DDD8CB]">
             <span>Audit Run Log</span>
-            <span className="text-[10px] font-normal">{message.runId}</span>
+            <span className="text-[10px] font-normal font-mono">{message.runId}</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
-            <div>
-              <span className="text-[#6E6A60]">Engine:</span> DuckDB Sandbox (Isolated)
+
+          {loadingTrace ? (
+            <div className="py-2 text-center text-[11px] italic text-[#6E6A60]">Loading trace steps…</div>
+          ) : runLog ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                <div>
+                  <span className="text-[#6E6A60] block text-[9px] uppercase">Engine</span>
+                  <span className="text-[#1F1E1B] font-medium">DuckDB Sandbox</span>
+                </div>
+                <div>
+                  <span className="text-[#6E6A60] block text-[9px] uppercase">Model</span>
+                  <span className="text-[#1F1E1B] font-medium">{runLog.model?.name || 'gemini-3.5-flash'}</span>
+                </div>
+                <div>
+                  <span className="text-[#6E6A60] block text-[9px] uppercase">Total Duration</span>
+                  <span className="text-[#1F1E1B] font-medium">{runLog.totalDurationMs}ms</span>
+                </div>
+                <div>
+                  <span className="text-[#6E6A60] block text-[9px] uppercase">Tokens</span>
+                  <span className="text-[#1F1E1B] font-medium">{runLog.tokens?.total || 0}</span>
+                </div>
+              </div>
+
+              {/* Steps timeline table */}
+              {runLog.steps && runLog.steps.length > 0 && (
+                <div className="border border-[#DDD8CB] rounded overflow-hidden">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="bg-[#EFECE4] text-[#1F1E1B]">
+                      <tr>
+                        <th className="p-1.5 font-medium">#</th>
+                        <th className="p-1.5 font-medium">Type</th>
+                        <th className="p-1.5 font-medium">Action</th>
+                        <th className="p-1.5 font-medium">Status</th>
+                        <th className="p-1.5 font-medium text-right">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#EBE7DD] bg-white">
+                      {runLog.steps.map((step) => (
+                        <tr key={step.index}>
+                          <td className="p-1.5 text-[#6E6A60]">{step.index}</td>
+                          <td className="p-1.5 text-[#1F1E1B]">{step.type}</td>
+                          <td className="p-1.5 text-[#1F1E1B] font-semibold">{step.name}</td>
+                          <td className="p-1.5">
+                            <span className={`px-1 rounded text-[9px] uppercase ${
+                              step.status === 'ok' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {step.status}
+                            </span>
+                          </td>
+                          <td className="p-1.5 text-right text-[#6E6A60]">{step.durationMs}ms</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-            <div>
-              <span className="text-[#6E6A60]">Model:</span> Gemini Flash
+          ) : (
+            <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+              <div>
+                <span className="text-[#6E6A60]">Engine:</span> DuckDB Sandbox (Isolated)
+              </div>
+              <div>
+                <span className="text-[#6E6A60]">Model:</span> Gemini Flash
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

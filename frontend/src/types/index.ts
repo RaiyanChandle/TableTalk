@@ -141,19 +141,29 @@ export interface RunLog {
   createdAt: string;
 }
 
+export interface ReportStats {
+  totalQuestions: number;
+  totalSqlAttempts: number;
+  successfulQueries: number;
+  failedQueries: number;
+  successRate: number;
+  avgLatencyMs: number;
+  totalTokens: {
+    input: number;
+    output: number;
+    total: number;
+  };
+  chartsCount: number;
+  chartsByType: Record<string, number>;
+  tablesUsed: string[];
+  notableEventsCount: number;
+}
+
 export interface AnalysisReport {
   conversationId: string;
   generatedAt: string;
+  title: string;
   markdown: string;
-  stats: {
-    questions: number;
-    sqlAttempts: number;
-    sqlFailures: number;
-    avgLatencyMs: number;
-    tokens: {
-      input: number;
-      output: number;
-    };
-  };
+  stats: ReportStats;
 }
 

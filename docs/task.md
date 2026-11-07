@@ -138,13 +138,13 @@ Mark items as you finish them.
 
 ### Phase 7 — Analysis report: the living doc (1.5 days)
 
-- [ ] `buildReport(conversationId)` service that assembles the report from `RunLog` records (always current, nothing hand-edited)
-- [ ] Sections: overview, data used, system and tools used, how the agent works, question-by-question log, session statistics, notable issues (see `design.md`)
-- [ ] `GET /api/conversations/:id/report` (JSON with the Markdown string and stats) and `?format=md` (file download)
-- [ ] Redact: never include API keys, cookies, or file paths; limit result previews to 20 rows
-- [ ] Frontend: "Report" tab in the conversation, rendered with `react-markdown`, with a Download .md button
-- [ ] Per-question "View trace" drawer showing steps and SQL attempts
-- [ ] Unit tests: report for a conversation with one success, one retry-then-success, and one failure
+- [x] `buildReport(conversationId)` service that assembles the report from `RunLog` records (always current, nothing hand-edited)
+- [x] Sections: overview, data used, system and tools used, how the agent works, question-by-question log, session statistics, notable issues (see `design.md`)
+- [x] `GET /api/conversations/:id/report` (JSON with the Markdown string and stats) and `?format=md` (file download)
+- [x] Redact: never include API keys, cookies, or file paths; limit result previews to 20 rows
+- [x] Frontend: "Report" tab in the conversation, rendered with `react-markdown`, with a Download .md button
+- [x] Per-question "View trace" drawer showing steps and SQL attempts
+- [x] Unit tests: report for a conversation with one success, one retry-then-success, and one failure
 
 **Done when:** after a chat with a join, a retry, and a chart, the downloaded report lets you explain exactly what happened for every question without opening the code.
 
@@ -159,11 +159,6 @@ Mark items as you finish them.
 - [ ] Log every executed SQL with userId, conversationId, duration (no raw data)
 
 ### Phase 9 — Deploy and document (1 day)
-
-- [ ] Dockerfile for the backend, static build for the frontend (two deployments)
-- [ ] Deploy backend (Render/Railway) and frontend (Vercel) on subdomains of the same parent domain, with `Secure` cookies and correct CORS
-- [ ] README with architecture diagram, GIF demo, setup steps
-- [ ] Sample multi-CSV dataset included in the repo
 - [ ] Write `docs/INTERVIEW_NOTES.md` and keep it updated (see `rules.md`): 30-second pitch, architecture walkthrough, why each technology, key decisions and trade-offs, security design, hardest bugs, eval numbers, what you would improve, likely questions with answers
 
 ## 5. Acceptance Criteria (v1)

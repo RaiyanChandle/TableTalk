@@ -85,6 +85,9 @@ The **AI Data Analyst** allows users to drop in multiple CSV files and immediate
 16. **Client-Side Vectorless Canvas PNG & CSV Export**:
     - *Decision*: Implement SVG-to-canvas rasterization for one-click PNG downloads of Recharts visualizations and RFC 4180 CSV generation on data tables directly in the browser.
     - *Trade-off*: Relies on client-side canvas rendering APIs, but eliminates server load and storage requirements for temporary static chart images or exported CSV tables.
+17. **Deterministic Zero-LLM Living Analysis Report (`buildReport`)**:
+    - *Decision*: Construct living Markdown reports and session statistics directly from MongoDB `RunLog` audit records and immutable conversation dataset snapshots rather than invoking an LLM to generate summaries on demand.
+    - *Trade-off*: Does not contain free-form AI commentary at the top in v1, but guarantees 100% deterministic fidelity with zero hallucination drift, zero extra API costs, instant millisecond generation, and full compliance with auditability standards.
 
 ---
 
@@ -142,4 +145,8 @@ The **AI Data Analyst** allows users to drop in multiple CSV files and immediate
 
 **Q: Why use client-side SVG-to-Canvas rasterization for chart PNG downloads rather than a server-side headless browser or rendering service?**
 > **A:** Server-side headless browsers (such as Puppeteer or Playwright) add heavy container image footprints (300MB+), significant memory overhead, and security attack vectors on the backend. Because Recharts already renders complete vector SVG DOM elements directly inside the user's browser, we can serialize the SVG string into an `Image` element and draw it onto a 2x high-DPI HTML5 canvas in under 15ms. This gives the user crisp, instant PNG downloads without adding server complexity or latency.
+
+**Q: How does the living analysis report guarantee zero hallucination drift while preserving sensitive audit boundaries?**
+> **A:** Rather than having an LLM author the report on the fly (which risks hallucinated figures, non-reproducible text, and accidental leak of internal paths or tokens), the report service (`buildReport`) constructs the entire Markdown document deterministically from immutable MongoDB `RunLog` records and conversation dataset snapshots. The report enforces strict redaction rules: API keys, session cookies, and server filesystem paths are never emitted, SQL result previews are strictly capped to 20 sanitized rows, and candidate joins are computed deterministically from schema AST structures.
+
 

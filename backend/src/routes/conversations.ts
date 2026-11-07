@@ -10,6 +10,7 @@ import { createConversationSchema, createMessageSchema } from '../schemas/index.
 import { createSandbox } from '../services/sandbox/createSandbox.js';
 import { runAgent, ChatHistoryItem } from '../services/agent/runAgent.js';
 import { DatasetToolContext } from '../services/agent/tools.js';
+import { buildReport } from '../services/report/buildReport.js';
 
 const router = Router();
 
@@ -290,6 +291,52 @@ router.get('/:id/runs', async (req: Request, res: Response): Promise<void> => {
     .lean();
 
   res.status(200).json({ runs });
+});
+
+/**
+ * GET /api/conversations/:id/report
+ * Fetch deterministic living analysis report in JSON or file download if ?format=md
+ */
+router.get('/:id/report', async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.id;
+  const id = req.params.id as string;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(404).json({
+      error: { code: 'NOT_FOUND', message: 'Conversation not found' },
+    });
+    return;
+  }
+
+  try {
+    const report = await buildReport(id, userId);
+
+    if (req.query.format === 'md') {
+      const safeTitle = (report.title || 'report')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'analysis';
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `analysis-report-${safeTitle}-${dateStr}.md`;
+
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.status(200).send(report.markdown);
+      return;
+    }
+
+    res.status(200).json(report);
+  } catch (err: any) {
+    if (err?.status === 404 || err?.message === 'Conversation not found') {
+      res.status(404).json({
+        error: { code: 'NOT_FOUND', message: 'Conversation not found' },
+      });
+      return;
+    }
+    res.status(500).json({
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to build report', detail: String(err) },
+    });
+  }
 });
 
 /**

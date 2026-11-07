@@ -1,4 +1,4 @@
-import type { Conversation, Message, RunLog } from '../types';
+import type { AnalysisReport, Conversation, Message, RunLog } from '../types';
 import { apiFetch } from './client';
 
 export interface CreateConversationParams {
@@ -155,4 +155,15 @@ export async function streamMessageApi(
     }
   }
 }
+
+export async function getReportApi(conversationId: string): Promise<AnalysisReport> {
+  return apiFetch<AnalysisReport>(`/api/conversations/${conversationId}/report`, {
+    method: 'GET',
+  });
+}
+
+export function getReportDownloadUrl(conversationId: string): string {
+  return `/api/conversations/${conversationId}/report?format=md`;
+}
+
 
