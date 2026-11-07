@@ -17,14 +17,17 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  ZAxis,
 } from 'recharts';
 import {
   Download,
   AlertCircle,
   BarChart3,
+  BarChartHorizontal,
   LineChart as LineIcon,
   AreaChart as AreaIcon,
   PieChart as PieIcon,
+  ScatterChart as ScatterIcon,
   Check,
 } from 'lucide-react';
 import type { ChartSpec, ChartType } from '../../types';
@@ -120,6 +123,32 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
 
     return { categoryKey, numericKey, pieData };
   }, [cleanData, data, xKey, yKeys]);
+
+  // Dedicated Scatter Data Processor (ensures BOTH X and Y are continuous numbers)
+  const scatterConfig = useMemo(() => {
+    const yTarget = yKeys[0] || '';
+    const points = data
+      .map((row, idx) => {
+        const rawX = row[xKey];
+        const rawY = row[yTarget];
+        const numX = typeof rawX === 'number' ? rawX : parseFloat(String(rawX ?? ''));
+        const numY = typeof rawY === 'number' ? rawY : parseFloat(String(rawY ?? ''));
+
+        // If X is not numeric (e.g. category label), map index along the axis so points plot cleanly
+        const finalX = isNaN(numX) ? idx + 1 : numX;
+        const finalY = isNaN(numY) ? 0 : numY;
+
+        return {
+          ...row,
+          x: finalX,
+          y: finalY,
+          tooltipLabel: String(row['name'] || row['title'] || row['id'] || row[xKey] || `Point ${idx + 1}`),
+        };
+      })
+      .filter((pt) => !isNaN(pt.x) && !isNaN(pt.y));
+
+    return { yTarget, points };
+  }, [data, xKey, yKeys]);
 
   const handleDownloadPng = async () => {
     if (!chartWrapperRef.current) return;
@@ -245,6 +274,46 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
               {yKeys.length > 1 && <Legend wrapperStyle={{ fontSize: 11, paddingTop: '8px' }} />}
               {yKeys.map((key, i) => (
                 <Bar key={key} dataKey={key} fill={PALETTE[i % PALETTE.length]} radius={[2, 2, 0, 0]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        );
+
+      case 'bar-horizontal':
+        return (
+          <ResponsiveContainer width="100%" height={Math.max(320, cleanData.length * 28 + 60)}>
+            <BarChart
+              data={cleanData}
+              layout="vertical"
+              margin={{ top: 12, right: 30, left: 30, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#DDD8CB" horizontal={false} />
+              <XAxis
+                type="number"
+                stroke="#6B665D"
+                tick={{ fill: '#6B665D', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}
+                label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -10, fill: '#6B665D', fontSize: 11 } : undefined}
+              />
+              <YAxis
+                type="category"
+                dataKey={xKey}
+                stroke="#6B665D"
+                width={110}
+                tick={{ fill: '#6B665D', fontSize: 11, fontFamily: 'IBM Plex Sans, sans-serif' }}
+              />
+              <Tooltip
+                formatter={(val: any) => [typeof val === 'number' ? val.toLocaleString() : val, '']}
+                contentStyle={{
+                  backgroundColor: '#FFFFFF',
+                  borderColor: '#DDD8CB',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  fontSize: '12px',
+                  fontFamily: 'IBM Plex Sans, sans-serif',
+                }}
+              />
+              {yKeys.map((key, i) => (
+                <Bar key={key} dataKey={key} fill={PALETTE[i % PALETTE.length]} radius={[0, 2, 2, 0]} />
               ))}
             </BarChart>
           </ResponsiveContainer>
@@ -404,24 +473,48 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
         );
 
       case 'scatter':
-        const scatterYKey = yKeys[0];
+        const { yTarget, points } = scatterConfig;
+
+        if (points.length === 0) {
+          return (
+            <div className="p-8 my-4 text-center bg-[#FAF9F6] border border-[#DDD8CB] rounded-md text-xs font-mono text-[#6E6A60]">
+              <p className="mb-2 font-medium text-[#1F1E1B]">No continuous numeric pairs available for Scatter plot.</p>
+              <p className="text-[11px] text-[#8C8578]">Scatter plots require two numeric dimensions. Switch to Bar view above to view individual data points.</p>
+            </div>
+          );
+        }
+
         return (
           <ResponsiveContainer width="100%" height={320}>
-            <ScatterChart margin={{ top: 12, right: 20, left: 10, bottom: 24 }}>
+            <ScatterChart margin={{ top: 12, right: 24, left: 10, bottom: 24 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#DDD8CB" />
               <XAxis
-                dataKey={xKey}
-                stroke="#6B665D"
-                tick={{ fill: '#6B665D', fontSize: 11, fontFamily: 'IBM Plex Sans, sans-serif' }}
-                label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -14, fill: '#6B665D', fontSize: 11 } : undefined}
-              />
-              <YAxis
-                dataKey={scatterYKey}
+                dataKey="x"
+                type="number"
+                domain={['auto', 'auto']}
+                name={xLabel || xKey}
                 stroke="#6B665D"
                 tick={{ fill: '#6B665D', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}
-                label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', fill: '#6B665D', fontSize: 11 } : undefined}
+                label={xLabel || xKey ? { value: xLabel || xKey, position: 'insideBottom', offset: -14, fill: '#6B665D', fontSize: 11 } : undefined}
               />
+              <YAxis
+                dataKey="y"
+                type="number"
+                domain={['auto', 'auto']}
+                name={yLabel || yTarget}
+                stroke="#6B665D"
+                tick={{ fill: '#6B665D', fontSize: 11, fontFamily: 'IBM Plex Mono, monospace' }}
+                label={yLabel || yTarget ? { value: yLabel || yTarget, angle: -90, position: 'insideLeft', fill: '#6B665D', fontSize: 11 } : undefined}
+              />
+              <ZAxis range={[50, 50]} />
               <Tooltip
+                cursor={{ strokeDasharray: '3 3' }}
+                formatter={(val: any, name: any, item: any) => {
+                  const label = item?.payload?.tooltipLabel || '';
+                  const formattedVal = typeof val === 'number' ? val.toLocaleString() : val;
+                  const axisName = name === 'x' ? (xLabel || xKey) : (yLabel || yTarget);
+                  return [formattedVal, `${axisName}${label ? ` (${label})` : ''}`];
+                }}
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
@@ -431,7 +524,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                   fontFamily: 'IBM Plex Sans, sans-serif',
                 }}
               />
-              <Scatter data={cleanData} fill={PALETTE[0]} />
+              <Scatter name={title} data={points} fill="#C8501E" shape="circle" />
             </ScatterChart>
           </ResponsiveContainer>
         );
@@ -460,9 +553,19 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
               className={`p-1.5 rounded text-xs transition-colors ${
                 activeType === 'bar' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
               }`}
-              title="Switch to Bar chart"
+              title="Switch to Vertical Bar chart"
             >
               <BarChart3 size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveType('bar-horizontal')}
+              className={`p-1.5 rounded text-xs transition-colors ${
+                activeType === 'bar-horizontal' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
+              }`}
+              title="Switch to Horizontal Bar chart (Rankings/Leaderboard)"
+            >
+              <BarChartHorizontal size={13} />
             </button>
             <button
               type="button"
@@ -470,7 +573,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
               className={`p-1.5 rounded text-xs transition-colors ${
                 activeType === 'line' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
               }`}
-              title="Switch to Line chart"
+              title="Switch to Trend Line chart"
             >
               <LineIcon size={13} />
             </button>
@@ -490,9 +593,19 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
               className={`p-1.5 rounded text-xs transition-colors ${
                 activeType === 'pie' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
               }`}
-              title="Switch to Pie chart"
+              title="Switch to Donut / Pie chart"
             >
               <PieIcon size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveType('scatter')}
+              className={`p-1.5 rounded text-xs transition-colors ${
+                activeType === 'scatter' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
+              }`}
+              title="Switch to Scatter Plot (Two-variable correlation)"
+            >
+              <ScatterIcon size={13} />
             </button>
           </div>
 

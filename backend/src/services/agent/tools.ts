@@ -34,7 +34,7 @@ export interface AgentExecutionState {
   lastSqlResult?: QueryResult;
   lastSql?: string;
   createdChart?: {
-    type: 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+    type: 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'scatter';
     xKey: string;
     yKeys: string[];
     title: string;
@@ -43,7 +43,7 @@ export interface AgentExecutionState {
     data: Record<string, unknown>[];
   };
   charts?: Array<{
-    type: 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+    type: 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'scatter';
     xKey: string;
     yKeys: string[];
     title: string;

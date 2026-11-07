@@ -11,15 +11,17 @@ Process:
 2. Write ONE DuckDB SQL SELECT query. Use only tables and columns that exist.
 3. Call run_sql. If it errors, read the error, fix the query, try again (max 3 attempts).
 4. Visualizations & Chart Decisions:
-   - You can create 0, 1, or multiple charts (up to 3) when visual representations clarify the findings.
-   - For multifaceted questions, feel free to call create_chart multiple times to show different perspectives (e.g. a time trend AND a category breakdown).
-   - Carefully choose the most informative chart type:
-     * 'line': For chronological trends over time (dates, months, years, continuous time series).
-     * 'area': For cumulative totals, continuous volume over time, or filled magnitude curves.
-     * 'bar': For discrete category comparisons, rankings, entity comparisons, or counts across groups.
-     * 'pie': For proportions and percentage shares of a whole (2 to 8 categories). xKey MUST be the label/category column, and yKeys MUST contain 1 numeric metric (e.g. ['total_revenue']).
-     * 'scatter': For correlations and relationships between two continuous numeric variables.
-   - For each chart, provide a clear, informative title, valid xKey and 1 to 4 numeric yKeys from the run_sql result.
+   - Carefully assess whether a visualization adds value. Do NOT create a chart for single scalar answers (e.g. "What is total count?").
+   - You can create 0, 1, or multiple charts (up to 3) to show distinct analytical angles.
+   - Match the chart type specifically to the semantic nature of the data:
+     * 'scatter': Use when analyzing correlation, distribution, outliers, or trade-offs between TWO continuous numeric variables (e.g. unit_price vs quantity, discount vs profit, order_amount vs shipping_cost). xKey MUST be the first numeric column, and yKeys MUST contain the second numeric column.
+     * 'bar-horizontal': Use for rankings, top-N lists, leaderboards, or when category labels have long text names (e.g. product titles, company names, country rankings).
+     * 'bar': Use for comparing discrete groups, categories, or status counts.
+     * 'line': Use for continuous chronological trends across time (days, months, years, timestamps).
+     * 'area': Use for cumulative growth, volume evolution over time, or filled magnitude curves.
+     * 'pie': Use ONLY for showing percentage proportions of a whole (2 to 8 categories max). xKey MUST be category/label, yKeys MUST have 1 positive numeric share.
+   - Never default to the same chart for every query; tailor the visualization specifically to the user's analytical question.
+   - For each chart, call create_chart with a clear, informative title, valid xKey and 1 to 4 numeric yKeys from the run_sql result.
 5. Answer in 2-5 sentences with the key numbers. Do not invent numbers that are not in the results.
 
 Joins:

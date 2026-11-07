@@ -39,7 +39,7 @@ export interface RunAgentResult {
     truncated?: boolean;
   };
   chart?: {
-    type: 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+    type: 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'scatter';
     xKey: string;
     yKeys: string[];
     title: string;
@@ -48,7 +48,7 @@ export interface RunAgentResult {
     data: Record<string, unknown>[];
   };
   charts?: Array<{
-    type: 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+    type: 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'scatter';
     xKey: string;
     yKeys: string[];
     title: string;

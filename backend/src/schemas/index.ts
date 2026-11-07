@@ -40,7 +40,7 @@ export const createMessageSchema = z.object({
 });
 
 // ---------- Chart Spec Schema ----------
-export const chartTypeSchema = z.enum(['bar', 'line', 'area', 'pie', 'scatter']);
+export const chartTypeSchema = z.enum(['bar', 'bar-horizontal', 'line', 'area', 'pie', 'scatter']);
 
 export const chartSpecSchema = z.object({
   type: chartTypeSchema,

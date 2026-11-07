@@ -12,7 +12,7 @@ export interface IMessage {
     truncated?: boolean;
   };
   chartSpec?: {
-    type: 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+    type: 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'scatter';
     xKey: string;
     yKeys: string[];
     title: string;
@@ -21,7 +21,7 @@ export interface IMessage {
     data?: Record<string, unknown>[];
   };
   chartSpecs?: Array<{
-    type: 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+    type: 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'scatter';
     xKey: string;
     yKeys: string[];
     title: string;
@@ -48,7 +48,7 @@ const MessageSchema = new Schema<IMessage>(
       truncated: { type: Boolean },
     },
     chartSpec: {
-      type: { type: String, enum: ['bar', 'line', 'area', 'pie', 'scatter'] },
+      type: { type: String, enum: ['bar', 'bar-horizontal', 'line', 'area', 'pie', 'scatter'] },
       xKey: { type: String },
       yKeys: [{ type: String }],
       title: { type: String },
@@ -58,7 +58,7 @@ const MessageSchema = new Schema<IMessage>(
     },
     chartSpecs: [
       {
-        type: { type: String, enum: ['bar', 'line', 'area', 'pie', 'scatter'] },
+        type: { type: String, enum: ['bar', 'bar-horizontal', 'line', 'area', 'pie', 'scatter'] },
         xKey: { type: String },
         yKeys: [{ type: String }],
         title: { type: String },

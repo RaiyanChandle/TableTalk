@@ -46,7 +46,7 @@ export interface Conversation {
   createdAt: string;
 }
 
-export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+export type ChartType = 'bar' | 'bar-horizontal' | 'line' | 'area' | 'pie' | 'scatter';
 
 export interface ChartSpec {
   type: ChartType;
