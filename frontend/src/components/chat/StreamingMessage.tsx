@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, StopCircle } from 'lucide-react';
+import { StopCircle } from 'lucide-react';
 import { ChartRenderer } from './ChartRenderer';
 import type { ChartSpec, TablePreview } from '../../types';
 
@@ -23,73 +23,79 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
   onStopStream,
 }) => {
   return (
-    <div className="flex gap-3 mb-8 items-start">
-      <div className="w-8 h-8 rounded-full bg-[#C8501E] text-white flex items-center justify-center shrink-0 mt-0.5 animate-pulse shadow-2xs">
-        <Sparkles size={15} />
-      </div>
-
-      <div className="flex-1 bg-white border border-slate-200 rounded-lg p-5 shadow-2xs">
-        {/* Live Status Bar */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#C8501E] animate-ping" />
-            <span className="text-xs font-medium text-slate-800">
-              {streamStatus || 'Processing...'}
+    <div className="mb-8 bg-white border border-[#DDD8CB] p-5 md:p-6 transition-all">
+      {/* Live Status Bar */}
+      <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#DDD8CB]">
+        <div className="flex items-center gap-2.5">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C8501E] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#C8501E]"></span>
+          </span>
+          <span className="text-xs font-mono font-medium text-[#1F1E1B]">
+            {streamStatus || 'Executing analysis…'}
+          </span>
+          {streamStep && (
+            <span className="text-[10px] font-mono px-2 py-0.5 bg-[#FAF9F6] border border-[#DDD8CB] rounded text-[#6E6A60]">
+              step {streamStep.index} · {streamStep.name}
             </span>
-            {streamStep && (
-              <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-100 rounded text-slate-600">
-                step {streamStep.index} · {streamStep.name}
-              </span>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={onStopStream}
-            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded transition-colors"
-            title="Stop query execution"
-          >
-            <StopCircle size={13} />
-            <span>Stop</span>
-          </button>
+          )}
         </div>
 
-        {/* Streaming Prose */}
-        {streamingAnswer && (
-          <div className="prose prose-sm max-w-none text-slate-800 text-sm leading-relaxed mb-4">
-            <p className="whitespace-pre-wrap">{streamingAnswer}</p>
+        <button
+          type="button"
+          onClick={onStopStream}
+          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-mono text-[#C8501E] hover:bg-[#FFF8F6] border border-[#F3D5CC] rounded transition-colors"
+          title="Halt active query execution"
+        >
+          <StopCircle size={13} />
+          <span>Stop</span>
+        </button>
+      </div>
+
+      {/* Streaming Answer Prose */}
+      {streamingAnswer && (
+        <div className="prose prose-sm max-w-none text-[#1F1E1B] leading-relaxed mb-4 font-sans">
+          <p className="whitespace-pre-wrap text-[14px] leading-relaxed">{streamingAnswer}</p>
+        </div>
+      )}
+
+      {/* Streaming Live SQL */}
+      {streamingSql && (
+        <div className="mb-4 rounded border border-[#1F1E1B] bg-[#1A1915] text-[#FAF9F6] p-3 text-xs font-mono overflow-x-auto">
+          <span className="text-[10px] uppercase text-stone-400 block mb-1">Generated DuckDB Query:</span>
+          <pre className="whitespace-pre-wrap leading-relaxed text-emerald-300">{streamingSql}</pre>
+        </div>
+      )}
+
+      {/* Streaming Chart */}
+      {streamingChart && (
+        <div className="my-4">
+          <ChartRenderer spec={streamingChart} />
+        </div>
+      )}
+
+      {/* Streaming Table */}
+      {streamingTable && streamingTable.rows.length > 0 && (
+        <div className="mt-4 border border-[#DDD8CB] overflow-hidden">
+          <div className="px-3 py-1.5 bg-[#FAF9F6] border-b border-[#DDD8CB] text-xs font-mono text-[#6E6A60]">
+            Streaming Result Preview ({streamingTable.rows.length} rows)
           </div>
-        )}
-
-        {/* Streaming SQL */}
-        {streamingSql && (
-          <div className="mb-4 rounded-md border border-slate-800 bg-slate-900 text-slate-100 p-3 text-xs font-mono overflow-x-auto">
-            <span className="text-[10px] uppercase text-slate-400 block mb-1">Generated SQL:</span>
-            <pre className="whitespace-pre-wrap">{streamingSql}</pre>
-          </div>
-        )}
-
-        {/* Streaming Chart */}
-        {streamingChart && <ChartRenderer spec={streamingChart} />}
-
-        {/* Streaming Table */}
-        {streamingTable && streamingTable.rows.length > 0 && (
-          <div className="mb-4 border border-slate-200 rounded overflow-x-auto max-h-52">
+          <div className="overflow-x-auto max-h-56">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-100 sticky top-0 border-b border-slate-200">
+              <thead className="bg-[#FAF9F6] sticky top-0 border-b border-[#DDD8CB]">
                 <tr>
                   {streamingTable.columns.map((c) => (
-                    <th key={c} className="p-2 font-mono font-semibold text-slate-700">
+                    <th key={c} className="px-3 py-2 font-mono font-medium text-[#1F1E1B] text-[11px] border-r border-[#DDD8CB] last:border-r-0 whitespace-nowrap">
                       {c}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {streamingTable.rows.slice(0, 5).map((row, rIdx) => (
+              <tbody className="divide-y divide-[#EBE7DD] bg-white">
+                {streamingTable.rows.slice(0, 10).map((row, rIdx) => (
                   <tr key={rIdx}>
                     {streamingTable.columns.map((c) => (
-                      <td key={c} className="p-2 font-mono text-right text-slate-900">
+                      <td key={c} className="px-3 py-1.5 font-mono text-[11px] text-[#1F1E1B] border-r border-[#EBE7DD] last:border-r-0 whitespace-nowrap text-right">
                         {String(row[c] ?? '')}
                       </td>
                     ))}
@@ -98,8 +104,8 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

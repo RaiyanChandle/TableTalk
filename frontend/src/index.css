@@ -1,16 +1,30 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Newsreader", Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-warm-bg: #F6F4EF;
+  --color-warm-surface: #FFFFFF;
+  --color-warm-card: #FFFFFF;
+  --color-warm-panel: #FAF9F6;
+  --color-warm-muted: #EFECE4;
+  --color-warm-border: #DDD8CB;
+  --color-warm-border-light: #EBE7DD;
+  --color-warm-ink: #1F1E1B;
+  --color-warm-secondary: #6E6A60;
+  --color-warm-accent: #C8501E;
 }
 
 :root {
-  --surface-page: #F8F9FA;
+  --surface-page: #F6F4EF;
   --surface-card: #FFFFFF;
-  --border-color: #E2E8F0;
-  --ink: #0F172A;
-  --text-secondary: #64748B;
+  --surface-muted: #EFECE4;
+  --border-color: #DDD8CB;
+  --border-color-light: #EBE7DD;
+  --ink: #1F1E1B;
+  --text-secondary: #6E6A60;
   --accent: #C8501E;
 }
 
@@ -35,6 +49,14 @@ html, body, #root {
 .font-mono {
   font-family: var(--font-mono) !important;
   font-variant-numeric: tabular-nums;
+}
+
+.font-serif {
+  font-family: var(--font-serif) !important;
+}
+
+.font-sans {
+  font-family: var(--font-sans) !important;
 }
 
 /* Custom Scrollbars */

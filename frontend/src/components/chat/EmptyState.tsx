@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronRight, Database } from 'lucide-react';
 import type { Conversation } from '../../types';
 
 interface EmptyStateProps {
@@ -14,21 +14,21 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onSelectQuestion,
 }) => {
   return (
-    <div className="my-auto py-12 text-center">
-      <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-100 text-[#C8501E] flex items-center justify-center mx-auto mb-4 shadow-2xs">
-        <Sparkles size={24} />
+    <div className="my-auto py-12 text-center max-w-xl mx-auto">
+      <div className="w-12 h-12 rounded-sm bg-[#FAF9F6] border border-[#DDD8CB] text-[#C8501E] flex items-center justify-center mx-auto mb-4">
+        <Database size={22} />
       </div>
-      <h2 className="text-xl font-semibold text-slate-900 mb-2">
-        {activeConversation ? activeConversation.title : 'Ask questions across your data'}
+      <h2 className="text-2xl md:text-3xl font-serif text-[#1F1E1B] mb-2 font-normal">
+        {activeConversation ? activeConversation.title : 'AI Data Analyst Workbench'}
       </h2>
-      <p className="text-xs text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
-        The agent inspects table relations, writes single-statement DuckDB SQL queries, executes them in your sandbox, and creates charts.
+      <p className="text-xs text-[#6E6A60] max-w-md mx-auto mb-8 leading-relaxed font-sans">
+        Select 1 to 5 tables from your data sources on the left and submit questions in natural language. DuckDB runs queries directly in an isolated sandbox.
       </p>
 
       {/* Suggested Questions Pills */}
       {suggestedQuestions.length > 0 && (
-        <div className="max-w-xl mx-auto space-y-2 text-left">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block px-1">
+        <div className="space-y-2 text-left">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[#6E6A60] block px-1 font-semibold">
             Suggested Inquiries:
           </span>
           <div className="grid gap-2">
@@ -37,10 +37,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
                 key={idx}
                 type="button"
                 onClick={() => onSelectQuestion(qText)}
-                className="w-full text-left p-3 text-xs font-medium bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg text-slate-800 transition-all flex items-center justify-between group shadow-2xs"
+                className="w-full text-left p-3.5 text-xs font-sans bg-white hover:bg-[#FAF9F6] border border-[#DDD8CB] hover:border-[#6E6A60] rounded text-[#1F1E1B] transition-all flex items-center justify-between group"
               >
                 <span>{qText}</span>
-                <ChevronRight size={14} className="text-slate-400 group-hover:text-slate-700" />
+                <ChevronRight size={14} className="text-[#6E6A60] group-hover:text-[#1F1E1B] transition-colors" />
               </button>
             ))}
           </div>

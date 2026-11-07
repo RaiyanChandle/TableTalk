@@ -18,26 +18,26 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const userQuestionsCount = messages.filter((m) => m.role === 'user').length;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-8 shadow-2xs my-auto text-center">
-      <div className="w-12 h-12 rounded-full bg-slate-100 text-[#C8501E] flex items-center justify-center mx-auto mb-3">
+    <div className="bg-white border border-[#DDD8CB] p-8 my-auto text-center max-w-xl mx-auto">
+      <div className="w-12 h-12 rounded-sm bg-[#FAF9F6] border border-[#DDD8CB] text-[#C8501E] flex items-center justify-center mx-auto mb-3">
         <FileText size={22} />
       </div>
-      <h3 className="text-lg font-semibold text-slate-900 mb-1">
+      <h3 className="text-xl font-serif text-[#1F1E1B] mb-1 font-normal">
         Living Analysis Report
       </h3>
-      <p className="text-xs text-slate-500 max-w-md mx-auto mb-4 leading-relaxed">
+      <p className="text-xs text-[#6E6A60] max-w-md mx-auto mb-6 leading-relaxed font-sans">
         The deterministic report documents all questions, DuckDB SQL queries, execution durations, and schemas used during this conversation.
       </p>
-      <div className="p-4 bg-slate-50 border border-slate-200 rounded-md text-left text-xs font-mono space-y-1 mb-4">
-        <p className="font-semibold text-slate-700"># Analysis Report — {activeConversation?.title || 'Untitled'}</p>
-        <p className="text-slate-500">Generated: {new Date().toLocaleString()}</p>
-        <p className="text-slate-500">Tables: {activeTableNames.join(', ') || 'none'}</p>
-        <p className="text-slate-500">Inquiries: {userQuestionsCount} questions logged</p>
+      <div className="p-4 bg-[#FAF9F6] border border-[#DDD8CB] rounded text-left text-xs font-mono space-y-1 mb-6">
+        <p className="font-semibold text-[#1F1E1B]"># Analysis Report — {activeConversation?.title || 'Untitled'}</p>
+        <p className="text-[#6E6A60]">Generated: {new Date().toLocaleString()}</p>
+        <p className="text-[#6E6A60]">Tables: {activeTableNames.join(', ') || 'none'}</p>
+        <p className="text-[#6E6A60]">Inquiries: {userQuestionsCount} questions logged</p>
       </div>
       <button
         type="button"
         onClick={onReturnToChat}
-        className="px-4 py-2 bg-slate-900 text-white text-xs font-medium rounded-md hover:bg-slate-800 transition-colors"
+        className="px-4 py-2 bg-[#1F1E1B] text-white text-xs font-mono font-medium rounded hover:bg-[#C8501E] transition-colors"
       >
         Return to Chat
       </button>

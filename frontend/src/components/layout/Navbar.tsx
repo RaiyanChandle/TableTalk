@@ -29,7 +29,7 @@ export const Navbar: React.FC = () => {
         </div>
         <div className="flex items-baseline gap-2">
           <span className="font-semibold text-slate-900 text-base tracking-tight">
-            AI Data Analyst
+            TableTalk
           </span>
           <span className="text-[10px] font-mono uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 font-medium">
             v1.0

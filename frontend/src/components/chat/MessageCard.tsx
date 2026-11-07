@@ -9,9 +9,9 @@ import {
   Download,
   Layers,
   Sparkles,
-  User as UserIcon,
   AlertTriangle,
   Info,
+  Code,
 } from 'lucide-react';
 import type { Message } from '../../types';
 import { ChartRenderer } from './ChartRenderer';
@@ -27,29 +27,28 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
   const [showTrace, setShowTrace] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
 
-  // User Message
+  // User Message: Rendered as the Inquiry Section of an Editorial Report Sheet
   if (message.role === 'user') {
     return (
-      <div className="flex gap-3 mb-6 items-start">
-        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center shrink-0 mt-0.5">
-          <UserIcon size={15} />
-        </div>
-        <div className="flex-1 bg-white border border-slate-200 rounded-lg p-4 shadow-2xs">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-semibold text-slate-800">You asked</span>
-            <span className="text-[11px] font-mono text-slate-400">
-              {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      <div className="mb-4 pt-6 first:pt-2">
+        <div className="flex items-center justify-between pb-2 mb-2 border-b-2 border-[#1F1E1B]">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-[#C8501E]">
+              User Inquiry
             </span>
           </div>
-          <p className="text-sm font-medium text-slate-900 leading-relaxed">
-            {message.content}
-          </p>
+          <span className="text-[11px] font-mono text-[#6E6A60]">
+            {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
         </div>
+        <h2 className="text-xl md:text-2xl font-serif text-[#1F1E1B] leading-snug">
+          {message.content}
+        </h2>
       </div>
     );
   }
 
-  // Assistant Message
+  // Assistant Message: Rendered as the Analytical Finding Sheet
   const handleCopySql = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (message.sql) {
@@ -65,86 +64,98 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
     exportTableAsCsv(safeTitle, message.tablePreview.columns, message.tablePreview.rows);
   };
 
-  // Clean error detector
   const isApiKeyError =
     message.error?.includes('API_KEY_INVALID') ||
     message.error?.includes('API key not valid') ||
     message.content?.includes('API key not valid');
 
   return (
-    <div className="flex gap-3 mb-8 items-start">
-      <div className="w-8 h-8 rounded-full bg-[#C8501E] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-        <Sparkles size={15} />
-      </div>
-
-      <div className="flex-1 bg-white border border-slate-200 rounded-lg p-5 shadow-2xs">
-        {/* Top Header & Metadata */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-3">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-semibold text-slate-800 mr-1">AI Analyst</span>
-            {tablesUsed.map((tbl) => (
-              <span
-                key={tbl}
-                className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-mono bg-slate-50 text-slate-600 rounded border border-slate-200"
-              >
-                <Layers size={10} className="text-[#C8501E]" />
-                <span>{tbl}</span>
-              </span>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3 text-[11px] font-mono text-slate-500">
-            {message.tablePreview && (
-              <span>
-                {message.tablePreview.rowCount ?? message.tablePreview.rows.length} rows
-                {message.tablePreview.truncated ? ' (capped)' : ''}
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1">
-              <Clock size={11} />
-              <span>{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+    <div className="mb-8 bg-white border border-[#DDD8CB] p-5 md:p-6 transition-all">
+      {/* Top Header & Metadata */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-[#DDD8CB]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#1F1E1B] flex items-center gap-1.5">
+            <Sparkles size={13} className="text-[#C8501E]" />
+            Analytical Finding
+          </span>
+          {tablesUsed.map((tbl) => (
+            <span
+              key={tbl}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-mono bg-[#FAF9F6] text-[#1F1E1B] rounded border border-[#DDD8CB]"
+            >
+              <Layers size={10} className="text-[#C8501E]" />
+              <span>{tbl}</span>
             </span>
-          </div>
+          ))}
         </div>
 
-        {/* Friendly Error Display if API Key Missing or Execution Failed */}
-        {isApiKeyError ? (
-          <div className="p-3.5 mb-4 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs">
-            <div className="flex items-center gap-2 font-semibold mb-1 text-amber-900">
-              <AlertTriangle size={15} className="text-amber-600" />
-              <span>Gemini API Key Required</span>
-            </div>
-            <p className="leading-relaxed">
-              Google Gemini returned an invalid API key error. Please set a valid <strong>GOOGLE_API_KEY</strong> from Google AI Studio inside <code>backend/.env</code> and restart your backend.
-            </p>
-          </div>
-        ) : message.error ? (
-          <div className="p-3.5 mb-4 bg-red-50 border border-red-200 rounded-md text-red-800 text-xs">
-            <div className="flex items-center gap-2 font-semibold mb-1 text-red-900">
-              <AlertTriangle size={15} className="text-red-600" />
-              <span>Analysis Stopped</span>
-            </div>
-            <p className="leading-relaxed font-mono">{message.error}</p>
-          </div>
-        ) : null}
+        <div className="flex items-center gap-3 text-[11px] font-mono text-[#6E6A60]">
+          {message.tablePreview && (
+            <span>
+              {message.tablePreview.rowCount ?? message.tablePreview.rows.length} rows
+              {message.tablePreview.truncated ? ' (capped)' : ''}
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            <Clock size={11} />
+            {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      </div>
 
-        {/* Answer Content */}
-        {!isApiKeyError && (
-          <div className="prose prose-sm max-w-none text-slate-800 text-sm leading-relaxed mb-4">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
+      {/* Structured Error State Banner */}
+      {message.error ? (
+        <div className="p-4 mb-4 bg-[#FFF8F6] border border-[#F3D5CC] rounded text-xs text-[#9C2D12]">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-[#C8501E]" />
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold block mb-1">Execution Interrupted</span>
+              <p className="font-mono text-[11px] leading-relaxed break-words whitespace-pre-wrap">
+                {message.error}
+              </p>
+              {isApiKeyError && (
+                <div className="mt-2 text-[11px] text-[#6E6A60] bg-white p-2.5 rounded border border-[#DDD8CB]">
+                  <strong>Action Required:</strong> Set a valid Google Gemini API Key in your <code className="bg-[#FAF9F6] px-1 py-0.5 rounded border border-[#DDD8CB]">backend/.env</code> file as <code className="bg-[#FAF9F6] px-1 py-0.5 rounded border border-[#DDD8CB]">GOOGLE_API_KEY</code>.
+                </div>
+              )}
+            </div>
           </div>
-        )}
+        </div>
+      ) : null}
 
-        {/* Actions Bar: Show SQL & View Trace */}
-        <div className="flex flex-wrap items-center gap-2 mb-4 pt-1">
+      {/* Finding Prose (Markdown rendered) */}
+      {message.content && (
+        <div className="prose prose-sm max-w-none text-[#1F1E1B] leading-relaxed mb-5 font-sans">
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-[14px]">{children}</p>,
+              ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1 text-[13px]">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-[13px]">{children}</ol>,
+              strong: ({ children }) => <strong className="font-semibold text-[#1F1E1B]">{children}</strong>,
+              code: ({ children }) => (
+                <code className="px-1.5 py-0.5 font-mono text-xs bg-[#FAF9F6] text-[#C8501E] rounded border border-[#DDD8CB]">
+                  {children}
+                </code>
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
+        </div>
+      )}
+
+      {/* Interactive Tool Actions Toolbar: [Show SQL] [View Trace] */}
+      {(message.sql || message.runId) && (
+        <div className="flex flex-wrap items-center gap-2 mb-4 pt-3 border-t border-[#DDD8CB]">
           {message.sql && (
             <button
               type="button"
               onClick={() => setShowSql(!showSql)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono bg-[#FAF9F6] hover:bg-[#EFECE4] text-[#1F1E1B] border border-[#DDD8CB] rounded transition-colors"
             >
-              {showSql ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              <span>Show SQL</span>
+              <Code size={12} className="text-[#C8501E]" />
+              <span>{showSql ? 'Hide SQL' : 'Show SQL'}</span>
+              {showSql ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             </button>
           )}
 
@@ -152,108 +163,130 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
             <button
               type="button"
               onClick={() => setShowTrace(!showTrace)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono bg-[#FAF9F6] hover:bg-[#EFECE4] text-[#6E6A60] border border-[#DDD8CB] rounded transition-colors"
             >
-              <Info size={13} />
-              <span>{showTrace ? 'Hide trace' : 'View trace'}</span>
+              <Info size={12} />
+              <span>{showTrace ? 'Hide Trace' : 'View Trace'}</span>
+              {showTrace ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          )}
+
+          {message.tablePreview && (
+            <button
+              type="button"
+              onClick={handleDownloadCsv}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-sans text-[#6E6A60] hover:text-[#1F1E1B] bg-white hover:bg-[#FAF9F6] border border-[#DDD8CB] rounded transition-colors ml-auto"
+              title="Download results as CSV"
+            >
+              <Download size={12} />
+              <span>Download CSV</span>
             </button>
           )}
         </div>
+      )}
 
-        {/* Collapsible SQL Block */}
-        {showSql && message.sql && (
-          <div className="mb-4 rounded-md border border-slate-800 bg-slate-900 text-slate-100 overflow-hidden text-xs font-mono">
-            <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800/80 border-b border-slate-700">
-              <span className="text-[11px] text-slate-400">DuckDB SQL Query</span>
-              <button
-                type="button"
-                onClick={handleCopySql}
-                className="inline-flex items-center gap-1 text-[11px] text-slate-300 hover:text-white px-2 py-0.5 bg-slate-700 rounded hover:bg-slate-600 transition-colors"
-              >
-                {copiedSql ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
-                <span>{copiedSql ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
-            <pre className="p-3.5 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-              {message.sql}
-            </pre>
+      {/* Collapsible SQL Query Drawer */}
+      {showSql && message.sql && (
+        <div className="mb-4 rounded border border-[#1F1E1B] bg-[#1A1915] text-[#FAF9F6] p-3 text-xs font-mono overflow-x-auto relative group">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-stone-800 text-[10px] text-stone-400 uppercase tracking-wider">
+            <span>Executed DuckDB Query</span>
+            <button
+              type="button"
+              onClick={handleCopySql}
+              className="inline-flex items-center gap-1 px-2 py-0.5 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded transition-colors"
+            >
+              {copiedSql ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+              <span>{copiedSql ? 'Copied' : 'Copy'}</span>
+            </button>
           </div>
-        )}
+          <pre className="whitespace-pre-wrap leading-relaxed text-emerald-300">{message.sql}</pre>
+        </div>
+      )}
 
-        {/* Collapsible Trace Drawer */}
-        {showTrace && message.runId && (
-          <div className="mb-4 p-3.5 bg-slate-50 border border-slate-200 rounded-md text-xs font-mono text-slate-600">
-            <div className="flex items-center justify-between mb-1 pb-1 border-b border-slate-200">
-              <span className="font-semibold text-slate-700">Run Log Trace</span>
-              <span className="text-[10px] text-slate-400">ID: {message.runId}</span>
-            </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Executed in locked in-memory DuckDB sandbox (memory cap 512MB, timeout 5000ms). Full audit trace captured in MongoDB.
-            </p>
+      {/* Collapsible Audit Run Trace Drawer */}
+      {showTrace && message.runId && (
+        <div className="mb-4 p-3.5 bg-[#FAF9F6] border border-[#DDD8CB] rounded text-xs font-mono space-y-1.5 text-[#6E6A60]">
+          <div className="flex items-center justify-between font-semibold text-[#1F1E1B] pb-1 border-b border-[#DDD8CB]">
+            <span>Audit Run Log</span>
+            <span className="text-[10px] font-normal">{message.runId}</span>
           </div>
-        )}
-
-        {/* Chart Visualization */}
-        {message.chartSpec && <ChartRenderer spec={message.chartSpec} />}
-
-        {/* Data Table Preview */}
-        {message.tablePreview && message.tablePreview.rows.length > 0 && (
-          <div className="mt-4 border border-slate-200 rounded-md overflow-hidden bg-white">
-            <div className="flex items-center justify-between px-3.5 py-2 bg-slate-50 border-b border-slate-200">
-              <span className="text-xs font-medium text-slate-600">
-                Result Preview ({message.tablePreview.rows.length} rows)
-              </span>
-              <button
-                type="button"
-                onClick={handleDownloadCsv}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 rounded shadow-2xs transition-colors"
-                title="Download table data as CSV"
-              >
-                <Download size={12} />
-                <span>Download CSV</span>
-              </button>
+          <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+            <div>
+              <span className="text-[#6E6A60]">Engine:</span> DuckDB Sandbox (Isolated)
             </div>
+            <div>
+              <span className="text-[#6E6A60]">Model:</span> Gemini Flash
+            </div>
+          </div>
+        </div>
+      )}
 
-            <div className="overflow-x-auto max-h-72">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead className="bg-slate-100/75 sticky top-0 border-b border-slate-200">
-                  <tr>
-                    {message.tablePreview.columns.map((col) => (
-                      <th key={col} className="p-2.5 font-mono text-slate-700 font-semibold whitespace-nowrap">
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {message.tablePreview.rows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
-                      {message.tablePreview!.columns.map((col) => {
-                        const val = row[col];
-                        const isNumeric = typeof val === 'number';
-                        return (
-                          <td
-                            key={col}
-                            className={`p-2.5 whitespace-nowrap ${
-                              isNumeric ? 'font-mono text-right text-slate-900' : 'text-slate-700'
-                            }`}
-                          >
-                            {val === null || val === undefined ? (
-                              <span className="text-slate-400 italic">null</span>
-                            ) : (
-                              String(val)
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
+      {/* Visual Chart Presentation */}
+      {message.chartSpec && (
+        <div className="my-4">
+          <ChartRenderer spec={message.chartSpec} />
+        </div>
+      )}
+
+      {/* Analytical Result Table Preview (Max 20 rows per design.md) */}
+      {message.tablePreview && message.tablePreview.rows && message.tablePreview.rows.length > 0 && (
+        <div className="mt-4 border border-[#DDD8CB] overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-[#FAF9F6] border-b border-[#DDD8CB] text-xs">
+            <span className="font-mono text-[#6E6A60] text-[11px]">
+              Displaying {Math.min(20, message.tablePreview.rows.length)} of {message.tablePreview.rowCount ?? message.tablePreview.rows.length} rows
+            </span>
+            <button
+              type="button"
+              onClick={handleDownloadCsv}
+              className="text-[11px] font-mono text-[#C8501E] hover:underline flex items-center gap-1"
+            >
+              <Download size={11} />
+              <span>Export RFC 4180 CSV</span>
+            </button>
+          </div>
+
+          <div className="overflow-x-auto max-h-72">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-[#FAF9F6] sticky top-0 border-b border-[#DDD8CB]">
+                <tr>
+                  {message.tablePreview.columns.map((colName) => (
+                    <th
+                      key={colName}
+                      className="px-3 py-2 font-mono font-medium text-[#1F1E1B] text-[11px] border-r border-[#DDD8CB] last:border-r-0 whitespace-nowrap"
+                    >
+                      {colName}
+                    </th>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#EBE7DD] bg-white">
+                {message.tablePreview.rows.slice(0, 20).map((row, rowIdx) => (
+                  <tr key={rowIdx} className="hover:bg-[#FAF9F6] transition-colors">
+                    {message.tablePreview!.columns.map((colName) => {
+                      const val = row[colName];
+                      const isNumeric = typeof val === 'number';
+                      return (
+                        <td
+                          key={colName}
+                          className={`px-3 py-1.5 font-mono text-[11px] text-[#1F1E1B] border-r border-[#EBE7DD] last:border-r-0 whitespace-nowrap ${
+                            isNumeric ? 'text-right' : 'text-left'
+                          }`}
+                        >
+                          {val === null || val === undefined ? (
+                            <span className="text-[#6E6A60] italic">null</span>
+                          ) : (
+                            String(val)
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
