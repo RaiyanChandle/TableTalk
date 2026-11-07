@@ -61,9 +61,9 @@ export const RegisterPage: React.FC = () => {
       <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center mt-12 sm:mt-16">
         {/* Auth Card with dual archway crest */}
         <div className="relative w-full bg-white border border-[#DDD8CB] rounded-2xl pt-13 pb-8 px-8 sm:px-9 shadow-lg shadow-stone-900/5">
-          {/* Outer concentric half-ring */}
+          {/* Outer concentric half-ring (filled warm ivory arch) */}
           <div
-            className="absolute -top-[68px] left-1/2 -translate-x-1/2 w-[136px] h-[69px] rounded-t-full border-t border-l border-r border-[#DDD8CB] pointer-events-none z-0"
+            className="absolute -top-[68px] left-1/2 -translate-x-1/2 w-[136px] h-[69px] rounded-t-full bg-[#FAF5EC] border-t border-l border-r border-[#DDD8CB] pointer-events-none z-0"
             aria-hidden="true"
           />
 
