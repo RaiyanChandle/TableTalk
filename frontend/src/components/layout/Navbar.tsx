@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Database, LogOut, User as UserIcon } from 'lucide-react';
+import { LogOut, User as UserIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const Navbar: React.FC = () => {
@@ -24,15 +24,15 @@ export const Navbar: React.FC = () => {
     <header className="h-14 px-6 bg-white border-b border-[#DDD8CB] flex items-center justify-between shrink-0 z-30">
       {/* Brand */}
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-sm bg-[#C8501E] flex items-center justify-center text-white">
-          <Database size={16} />
+        <div className="w-8 h-8 rounded-sm bg-[#FAF9F6] border border-[#DDD8CB] flex items-center justify-center overflow-hidden p-0.5">
+          <img src="/logo.svg" alt="TableTalk logo" className="w-full h-full object-contain" />
         </div>
         <div className="flex items-baseline gap-2">
           <span className="font-serif font-bold text-[#1F1E1B] text-lg tracking-tight">
             TableTalk
           </span>
           <span className="text-[10px] font-mono uppercase bg-[#EFECE4] text-[#6E6A60] px-1.5 py-0.5 rounded border border-[#DDD8CB] font-medium">
-            TableTalk
+            DuckDB SQL
           </span>
         </div>
       </div>
