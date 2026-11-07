@@ -17,7 +17,7 @@ Process:
      * 'line': For chronological trends over time (dates, months, years, continuous time series).
      * 'area': For cumulative totals, continuous volume over time, or filled magnitude curves.
      * 'bar': For discrete category comparisons, rankings, entity comparisons, or counts across groups.
-     * 'pie': For proportions and percentage shares of a whole (best for 2 to 7 discrete categories).
+     * 'pie': For proportions and percentage shares of a whole (2 to 8 categories). xKey MUST be the label/category column, and yKeys MUST contain 1 numeric metric (e.g. ['total_revenue']).
      * 'scatter': For correlations and relationships between two continuous numeric variables.
    - For each chart, provide a clear, informative title, valid xKey and 1 to 4 numeric yKeys from the run_sql result.
 5. Answer in 2-5 sentences with the key numbers. Do not invent numbers that are not in the results.

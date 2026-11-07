@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import {
   Area,
   AreaChart,
@@ -33,7 +33,21 @@ interface ChartRendererProps {
   spec: ChartSpec;
 }
 
-const PALETTE = ['#C8501E', '#2A4B7C', '#3E7A5E', '#B28228', '#7D4E7B', '#8C4351'];
+// 12-color harmonious editorial palette
+const PALETTE = [
+  '#C8501E', // terracotta
+  '#2A4B7C', // navy slate
+  '#3E7A5E', // forest green
+  '#B28228', // vintage ochre
+  '#7D4E7B', // plum
+  '#8C4351', // crimson rose
+  '#D05C2B', // bright terracotta
+  '#3B6B99', // sky steel
+  '#4E9A78', // emerald
+  '#CC9933', // amber gold
+  '#9B6699', // lavender heather
+  '#B05E6D', // dusty rose
+];
 
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,23 +67,74 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
 
   const { title, xKey, yKeys, xLabel, yLabel, data } = spec;
 
+  // Universal sanitization: ensure numeric Y-values are real numbers (DuckDB can return strings/BigInts)
+  const cleanData = useMemo(() => {
+    return data.map((row) => {
+      const cleanRow: Record<string, any> = { ...row };
+      for (const yk of yKeys) {
+        const val = row[yk];
+        if (val !== null && val !== undefined && val !== '') {
+          const num = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^0-9.-]+/g, ''));
+          cleanRow[yk] = isNaN(num) ? 0 : num;
+        } else {
+          cleanRow[yk] = 0;
+        }
+      }
+      return cleanRow;
+    });
+  }, [data, yKeys]);
+
+  // Dedicated Pie Data Processor (recovers from key inversion, converts strings, filters non-positives)
+  const pieConfig = useMemo(() => {
+    if (cleanData.length === 0) return { categoryKey: xKey, numericKey: yKeys[0] || 'value', pieData: [] };
+
+    let categoryKey = xKey;
+    let numericKey = yKeys[0] || '';
+
+    // Auto-detect key inversion: if xKey column is numeric and numericKey column is string
+    const firstRow = data[0];
+    if (firstRow && numericKey) {
+      const xVal = firstRow[xKey];
+      const yVal = firstRow[numericKey];
+      const xIsPureNum = typeof xVal === 'number' || (typeof xVal === 'string' && /^-?\d+(\.\d+)?$/.test(xVal.trim()));
+      const yIsPureNum = typeof yVal === 'number' || (typeof yVal === 'string' && /^-?\d+(\.\d+)?$/.test(yVal.trim()));
+
+      if (xIsPureNum && !yIsPureNum) {
+        categoryKey = yKeys[0];
+        numericKey = xKey;
+      }
+    }
+
+    const pieData = cleanData
+      .map((row) => {
+        const rawNum = row[numericKey];
+        const num = typeof rawNum === 'number' ? rawNum : parseFloat(String(rawNum ?? 0));
+        return {
+          ...row,
+          [categoryKey]: String(row[categoryKey] ?? 'Unknown'),
+          [numericKey]: isNaN(num) ? 0 : Math.max(0, num),
+        };
+      })
+      .filter((row) => (row[numericKey] as number) > 0)
+      .slice(0, 10);
+
+    return { categoryKey, numericKey, pieData };
+  }, [cleanData, data, xKey, yKeys]);
+
   const handleDownloadPng = async () => {
     if (!chartWrapperRef.current) return;
     try {
       setDownloading(true);
 
-      // Targeted selector: find the actual recharts SVG, NOT the toolbar Lucide icons!
       const svgElement =
         chartWrapperRef.current.querySelector<SVGSVGElement>('svg.recharts-surface') ||
         chartWrapperRef.current.querySelector<SVGSVGElement>('svg');
 
       if (!svgElement) {
-        console.warn('No chart SVG found inside chartWrapperRef');
         setDownloading(false);
         return;
       }
 
-      // Clone SVG and ensure width/height and XML namespaces are explicit for Image rendering
       const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
       const svgWidth = svgElement.clientWidth || 800;
       const svgHeight = svgElement.clientHeight || 360;
@@ -84,7 +149,6 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
 
       const image = new Image();
       image.onload = () => {
-        // 2x HiDPI resolution canvas
         const scale = 2;
         const headerHeight = 76;
         const totalWidth = svgWidth * scale;
@@ -96,25 +160,21 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
         const ctx = canvas.getContext('2d');
 
         if (ctx) {
-          // 1. Crisp white background
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // 2. Chart Title
           ctx.fillStyle = '#1F1E1B';
           ctx.font = 'bold 36px "Newsreader", Georgia, serif';
           ctx.fillText(title || 'TableTalk Analytical Chart', 24 * scale, 34 * scale);
 
-          // 3. Metadata Subtitle
           ctx.fillStyle = '#6E6A60';
           ctx.font = '600 20px "IBM Plex Mono", monospace';
           ctx.fillText(
-            `TABLETALK · ${activeType.toUpperCase()} VIEW · ${data.length} DATA POINTS`,
+            `TABLETALK · ${activeType.toUpperCase()} VIEW · ${cleanData.length} DATA POINTS`,
             24 * scale,
             54 * scale
           );
 
-          // 4. Subtle separator line
           ctx.strokeStyle = '#DDD8CB';
           ctx.lineWidth = 1.5 * scale;
           ctx.beginPath();
@@ -122,10 +182,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
           ctx.lineTo(canvas.width - 24 * scale, 64 * scale);
           ctx.stroke();
 
-          // 5. Draw the rasterized chart SVG
           ctx.drawImage(image, 0, headerHeight * scale, svgWidth * scale, svgHeight * scale);
 
-          // 6. Trigger PNG download
           const pngUrl = canvas.toDataURL('image/png');
           const downloadLink = document.createElement('a');
           const safeName = (title || 'tabletalk_chart').toLowerCase().replace(/[^a-z0-9]+/g, '_');
@@ -144,7 +202,6 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
       };
 
       image.onerror = () => {
-        console.error('Failed to rasterize chart SVG to image');
         URL.revokeObjectURL(blobURL);
         setDownloading(false);
       };
@@ -161,7 +218,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
       case 'bar':
         return (
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={data} margin={{ top: 12, right: 20, left: 10, bottom: 24 }}>
+            <BarChart data={cleanData} margin={{ top: 12, right: 20, left: 10, bottom: 24 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#DDD8CB" vertical={false} />
               <XAxis
                 dataKey={xKey}
@@ -175,6 +232,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                 label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', fill: '#6B665D', fontSize: 11 } : undefined}
               />
               <Tooltip
+                formatter={(val: any) => [typeof val === 'number' ? val.toLocaleString() : val, '']}
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
@@ -195,7 +253,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
       case 'line':
         return (
           <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={data} margin={{ top: 12, right: 20, left: 10, bottom: 24 }}>
+            <LineChart data={cleanData} margin={{ top: 12, right: 20, left: 10, bottom: 24 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#DDD8CB" vertical={false} />
               <XAxis
                 dataKey={xKey}
@@ -209,6 +267,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                 label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', fill: '#6B665D', fontSize: 11 } : undefined}
               />
               <Tooltip
+                formatter={(val: any) => [typeof val === 'number' ? val.toLocaleString() : val, '']}
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
@@ -237,7 +296,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
       case 'area':
         return (
           <ResponsiveContainer width="100%" height={320}>
-            <AreaChart data={data} margin={{ top: 12, right: 20, left: 10, bottom: 24 }}>
+            <AreaChart data={cleanData} margin={{ top: 12, right: 20, left: 10, bottom: 24 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#DDD8CB" vertical={false} />
               <XAxis
                 dataKey={xKey}
@@ -251,6 +310,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                 label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', fill: '#6B665D', fontSize: 11 } : undefined}
               />
               <Tooltip
+                formatter={(val: any) => [typeof val === 'number' ? val.toLocaleString() : val, '']}
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
@@ -276,11 +336,25 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
         );
 
       case 'pie':
-        const primaryYKey = yKeys[0];
+        const { categoryKey, numericKey, pieData } = pieConfig;
+
+        if (pieData.length === 0) {
+          return (
+            <div className="p-8 my-4 text-center bg-[#FAF9F6] border border-[#DDD8CB] rounded-md text-xs font-mono text-[#6E6A60]">
+              <p className="mb-2 font-medium text-[#1F1E1B]">No positive numeric values available for Pie representation.</p>
+              <p className="text-[11px] text-[#8C8578]">Pie charts require positive numeric shares. Switch to Bar view above to examine these metrics.</p>
+            </div>
+          );
+        }
+
         return (
-          <ResponsiveContainer width="100%" height={320}>
-            <PieChart margin={{ top: 12, right: 20, left: 20, bottom: 20 }}>
+          <ResponsiveContainer width="100%" height={340}>
+            <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
               <Tooltip
+                formatter={(value: any) => [
+                  typeof value === 'number' ? value.toLocaleString() : value,
+                  numericKey,
+                ]}
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
@@ -290,22 +364,39 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                   fontFamily: 'IBM Plex Sans, sans-serif',
                 }}
               />
-              <Legend wrapperStyle={{ fontSize: 11, paddingTop: '8px' }} />
+              <Legend
+                layout="horizontal"
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={{
+                  fontSize: 11,
+                  paddingTop: '12px',
+                  fontFamily: 'IBM Plex Sans, sans-serif',
+                }}
+                formatter={(val: string) => <span className="text-[#1F1E1B]">{val}</span>}
+              />
               <Pie
-                data={data.slice(0, 15)}
-                dataKey={primaryYKey}
-                nameKey={xKey}
+                data={pieData}
+                dataKey={numericKey}
+                nameKey={categoryKey}
                 cx="50%"
-                cy="50%"
-                outerRadius={100}
-                innerRadius={45}
+                cy="44%"
+                outerRadius={95}
+                innerRadius={46}
                 paddingAngle={2}
-                label={({ name, percent }: { name?: string; percent?: number }) =>
-                  `${name ?? ''} (${((percent ?? 0) * 100).toFixed(0)}%)`
+                label={({ percent }: { percent?: number }) =>
+                  percent && percent >= 0.05 ? `${(percent * 100).toFixed(0)}%` : ''
                 }
+                labelLine={false}
+                isAnimationActive={true}
+                animationDuration={600}
               >
-                {data.slice(0, 15).map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} />
+                {pieData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    name={String(entry[categoryKey])}
+                    fill={PALETTE[index % PALETTE.length]}
+                  />
                 ))}
               </Pie>
             </PieChart>
@@ -340,7 +431,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                   fontFamily: 'IBM Plex Sans, sans-serif',
                 }}
               />
-              <Scatter data={data} fill={PALETTE[0]} />
+              <Scatter data={cleanData} fill={PALETTE[0]} />
             </ScatterChart>
           </ResponsiveContainer>
         );
@@ -356,7 +447,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
         <div className="min-w-0 flex-1">
           <h4 className="text-sm font-serif font-bold text-[#1F1E1B] truncate">{title}</h4>
           <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B665D]">
-            {activeType.toUpperCase()} VIEW · {data.length} DATA POINTS
+            {activeType.toUpperCase()} VIEW · {cleanData.length} DATA POINTS
           </span>
         </div>
 
