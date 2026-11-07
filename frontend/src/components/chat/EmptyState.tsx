@@ -19,7 +19,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <Database size={22} />
       </div>
       <h2 className="text-2xl md:text-3xl font-serif text-[#1F1E1B] mb-2 font-normal">
-        {activeConversation ? activeConversation.title : 'AI Data Analyst Workbench'}
+        {activeConversation ? activeConversation.title : 'TableTalk Workbench'}
       </h2>
       <p className="text-xs text-[#6E6A60] max-w-md mx-auto mb-8 leading-relaxed font-sans">
         Select 1 to 5 tables from your data sources on the left and submit questions in natural language. DuckDB runs queries directly in an isolated sandbox.

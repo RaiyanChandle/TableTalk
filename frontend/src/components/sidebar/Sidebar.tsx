@@ -1,10 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Check,
   ChevronDown,
   ChevronRight,
   Database,
   MessageSquare,
+  Pencil,
   Table,
   Trash2,
   Upload,
@@ -32,6 +33,7 @@ interface SidebarProps {
   loadingConversations: boolean;
   setActiveConversationId: (id: string | null) => void;
   handleDeleteConversation: (id: string, e: React.MouseEvent) => void;
+  handleRenameConversation?: (id: string, newTitle: string) => Promise<void> | void;
   onNewAnalysis: () => void;
 }
 
@@ -55,9 +57,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   loadingConversations,
   setActiveConversationId,
   handleDeleteConversation,
+  handleRenameConversation,
   onNewAnalysis,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingConvId, setEditingConvId] = useState<string | null>(null);
+  const [editTitleDraft, setEditTitleDraft] = useState('');
 
   return (
     <>
@@ -266,6 +271,52 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="space-y-1">
               {conversations.map((conv) => {
                 const isActive = conv.id === activeConversationId;
+                const isEditing = editingConvId === conv.id;
+
+                if (isEditing) {
+                  return (
+                    <form
+                      key={conv.id}
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const trimmed = editTitleDraft.trim();
+                        if (trimmed && handleRenameConversation) {
+                          handleRenameConversation(conv.id, trimmed);
+                        }
+                        setEditingConvId(null);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 p-1 bg-white border border-[#1F1E1B] rounded text-xs"
+                    >
+                      <input
+                        type="text"
+                        value={editTitleDraft}
+                        onChange={(e) => setEditTitleDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setEditingConvId(null);
+                        }}
+                        autoFocus
+                        className="flex-1 px-1.5 py-0.5 text-xs font-sans text-[#1F1E1B] bg-transparent focus:outline-none min-w-0"
+                      />
+                      <button
+                        type="submit"
+                        className="p-1 text-emerald-700 hover:text-emerald-900 shrink-0"
+                        title="Save title"
+                      >
+                        <Check size={12} strokeWidth={3} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingConvId(null)}
+                        className="p-1 text-[#6E6A60] hover:text-[#1F1E1B] shrink-0"
+                        title="Cancel"
+                      >
+                        <X size={12} />
+                      </button>
+                    </form>
+                  );
+                }
+
                 return (
                   <div
                     key={conv.id}
@@ -279,18 +330,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         : 'text-[#6E6A60] hover:bg-[#EFECE4] hover:text-[#1F1E1B]'
                     }`}
                   >
-                    <div className="flex items-center gap-2 truncate mr-1">
+                    <div className="flex items-center gap-2 truncate mr-1 min-w-0">
                       <MessageSquare size={13} className={isActive ? 'text-[#C8501E]' : 'text-[#6E6A60]'} />
                       <span className="truncate">{conv.title}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteConversation(conv.id, e)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-[#6E6A60] hover:text-[#C8501E] transition-opacity"
-                      title="Delete conversation"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingConvId(conv.id);
+                          setEditTitleDraft(conv.title);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-[#6E6A60] hover:text-[#1F1E1B] transition-opacity"
+                        title="Rename conversation"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteConversation(conv.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-[#6E6A60] hover:text-[#C8501E] transition-opacity"
+                        title="Delete conversation"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}

@@ -40,13 +40,13 @@ export const LoginPage: React.FC = () => {
           <span
             style={{
               fontFamily: 'Newsreader, Georgia, serif',
-              fontSize: '24px',
-              fontWeight: 500,
+              fontSize: '28px',
+              fontWeight: 600,
               color: '#1B1B18',
-              letterSpacing: '-0.01em',
+              letterSpacing: '-0.02em',
             }}
           >
-            sqlrag
+            TableTalk
           </span>
         </div>
 

@@ -51,18 +51,18 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
   // User Message: Rendered as the Inquiry Section of an Editorial Report Sheet
   if (message.role === 'user') {
     return (
-      <div className="mb-4 pt-6 first:pt-2">
+      <div className="mb-4 pt-6 first:pt-2 min-w-0 max-w-full">
         <div className="flex items-center justify-between pb-2 mb-2 border-b-2 border-[#1F1E1B]">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-[#C8501E]">
               User Inquiry
             </span>
           </div>
-          <span className="text-[11px] font-mono text-[#6E6A60]">
+          <span className="text-[11px] font-mono text-[#6E6A60] shrink-0">
             {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
-        <h2 className="text-xl md:text-2xl font-serif text-[#1F1E1B] leading-snug">
+        <h2 className="text-xl md:text-2xl font-serif text-[#1F1E1B] leading-snug break-words">
           {message.content}
         </h2>
       </div>
@@ -91,26 +91,26 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
     message.content?.includes('API key not valid');
 
   return (
-    <div className="mb-8 bg-white border border-[#DDD8CB] p-5 md:p-6 transition-all">
+    <div className="mb-8 bg-white border border-[#DDD8CB] p-4 sm:p-5 md:p-6 transition-all min-w-0 max-w-full overflow-hidden">
       {/* Top Header & Metadata */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-[#DDD8CB]">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[#1F1E1B] flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-[#DDD8CB] min-w-0">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#1F1E1B] flex items-center gap-1.5 shrink-0">
             <Sparkles size={13} className="text-[#C8501E]" />
             Analytical Finding
           </span>
           {tablesUsed.map((tbl) => (
             <span
               key={tbl}
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-mono bg-[#FAF9F6] text-[#1F1E1B] rounded border border-[#DDD8CB]"
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-mono bg-[#FAF9F6] text-[#1F1E1B] rounded border border-[#DDD8CB] truncate"
             >
-              <Layers size={10} className="text-[#C8501E]" />
-              <span>{tbl}</span>
+              <Layers size={10} className="text-[#C8501E] shrink-0" />
+              <span className="truncate">{tbl}</span>
             </span>
           ))}
         </div>
 
-        <div className="flex items-center gap-3 text-[11px] font-mono text-[#6E6A60]">
+        <div className="flex items-center gap-3 text-[11px] font-mono text-[#6E6A60] shrink-0">
           {message.tablePreview && (
             <span>
               {message.tablePreview.rowCount ?? message.tablePreview.rows.length} rows
@@ -126,12 +126,12 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
 
       {/* Structured Error State Banner */}
       {message.error ? (
-        <div className="p-4 mb-4 bg-[#FFF8F6] border border-[#F3D5CC] rounded text-xs text-[#9C2D12]">
-          <div className="flex items-start gap-2.5">
+        <div className="p-4 mb-4 bg-[#FFF8F6] border border-[#F3D5CC] rounded text-xs text-[#9C2D12] min-w-0 max-w-full overflow-hidden">
+          <div className="flex items-start gap-2.5 min-w-0">
             <AlertTriangle size={15} className="shrink-0 mt-0.5 text-[#C8501E]" />
             <div className="flex-1 min-w-0">
               <span className="font-semibold block mb-1">Execution Interrupted</span>
-              <p className="font-mono text-[11px] leading-relaxed break-words whitespace-pre-wrap">
+              <p className="font-mono text-[11px] leading-relaxed break-words break-all whitespace-pre-wrap max-h-52 overflow-y-auto">
                 {message.error}
               </p>
               {isApiKeyError && (
@@ -146,15 +146,15 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
 
       {/* Finding Prose (Markdown rendered) */}
       {message.content && (
-        <div className="prose prose-sm max-w-none text-[#1F1E1B] leading-relaxed mb-5 font-sans">
+        <div className="prose prose-sm max-w-none text-[#1F1E1B] leading-relaxed mb-5 font-sans break-words min-w-0 overflow-hidden">
           <ReactMarkdown
             components={{
-              p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-[14px]">{children}</p>,
+              p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-[14px] break-words">{children}</p>,
               ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1 text-[13px]">{children}</ul>,
               ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-[13px]">{children}</ol>,
               strong: ({ children }) => <strong className="font-semibold text-[#1F1E1B]">{children}</strong>,
               code: ({ children }) => (
-                <code className="px-1.5 py-0.5 font-mono text-xs bg-[#FAF9F6] text-[#C8501E] rounded border border-[#DDD8CB]">
+                <code className="px-1.5 py-0.5 font-mono text-xs bg-[#FAF9F6] text-[#C8501E] rounded border border-[#DDD8CB] break-words break-all">
                   {children}
                 </code>
               ),
@@ -167,7 +167,7 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
 
       {/* Interactive Tool Actions Toolbar: [Show SQL] [View Trace] */}
       {(message.sql || message.runId) && (
-        <div className="flex flex-wrap items-center gap-2 mb-4 pt-3 border-t border-[#DDD8CB]">
+        <div className="flex flex-wrap items-center gap-2 mb-4 pt-3 border-t border-[#DDD8CB] min-w-0">
           {message.sql && (
             <button
               type="button"
@@ -196,7 +196,7 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
             <button
               type="button"
               onClick={handleDownloadCsv}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-sans text-[#6E6A60] hover:text-[#1F1E1B] bg-white hover:bg-[#FAF9F6] border border-[#DDD8CB] rounded transition-colors ml-auto"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-sans text-[#6E6A60] hover:text-[#1F1E1B] bg-white hover:bg-[#FAF9F6] border border-[#DDD8CB] rounded transition-colors ml-auto shrink-0"
               title="Download results as CSV"
             >
               <Download size={12} />
@@ -208,7 +208,7 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
 
       {/* Collapsible SQL Query Drawer */}
       {showSql && message.sql && (
-        <div className="mb-4 rounded border border-[#1F1E1B] bg-[#1A1915] text-[#FAF9F6] p-3 text-xs font-mono overflow-x-auto relative group">
+        <div className="mb-4 rounded border border-[#1F1E1B] bg-[#1A1915] text-[#FAF9F6] p-3 text-xs font-mono overflow-x-auto max-w-full relative group min-w-0">
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-stone-800 text-[10px] text-stone-400 uppercase tracking-wider">
             <span>Executed DuckDB Query</span>
             <button
@@ -220,22 +220,22 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
               <span>{copiedSql ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
-          <pre className="whitespace-pre-wrap leading-relaxed text-emerald-300">{message.sql}</pre>
+          <pre className="whitespace-pre-wrap leading-relaxed text-emerald-300 break-words">{message.sql}</pre>
         </div>
       )}
 
       {/* Collapsible Audit Run Trace Drawer */}
       {showTrace && message.runId && (
-        <div className="mb-4 p-4 bg-[#FAF9F6] border border-[#DDD8CB] rounded text-xs font-mono space-y-3 text-[#6E6A60]">
-          <div className="flex items-center justify-between font-semibold text-[#1F1E1B] pb-2 border-b border-[#DDD8CB]">
-            <span>Audit Run Log</span>
-            <span className="text-[10px] font-normal font-mono">{message.runId}</span>
+        <div className="mb-4 p-4 bg-[#FAF9F6] border border-[#DDD8CB] rounded text-xs font-mono space-y-3 text-[#6E6A60] min-w-0 max-w-full overflow-hidden">
+          <div className="flex items-center justify-between font-semibold text-[#1F1E1B] pb-2 border-b border-[#DDD8CB] min-w-0">
+            <span className="shrink-0 mr-2">Audit Run Log</span>
+            <span className="text-[10px] font-normal font-mono truncate">{message.runId}</span>
           </div>
 
           {loadingTrace ? (
             <div className="py-2 text-center text-[11px] italic text-[#6E6A60]">Loading trace steps…</div>
           ) : runLog ? (
-            <div className="space-y-3">
+            <div className="space-y-3 min-w-0">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                 <div>
                   <span className="text-[#6E6A60] block text-[9px] uppercase">Engine</span>
@@ -246,7 +246,7 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
                   <span className="text-[#1F1E1B] font-medium">{runLog.model?.name || 'gemini-3.5-flash'}</span>
                 </div>
                 <div>
-                  <span className="text-[#6E6A60] block text-[9px] uppercase">Total Duration</span>
+                  <span className="text-[#6E6A60] block text-[9px] uppercase">Duration</span>
                   <span className="text-[#1F1E1B] font-medium">{runLog.totalDurationMs}ms</span>
                 </div>
                 <div>
@@ -257,7 +257,7 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
 
               {/* Steps timeline table */}
               {runLog.steps && runLog.steps.length > 0 && (
-                <div className="border border-[#DDD8CB] rounded overflow-hidden">
+                <div className="border border-[#DDD8CB] rounded overflow-x-auto max-w-full min-w-0">
                   <table className="w-full text-left text-[11px]">
                     <thead className="bg-[#EFECE4] text-[#1F1E1B]">
                       <tr>
@@ -304,29 +304,29 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
 
       {/* Visual Chart Presentation */}
       {message.chartSpec && (
-        <div className="my-4">
+        <div className="my-4 min-w-0 max-w-full overflow-hidden">
           <ChartRenderer spec={message.chartSpec} />
         </div>
       )}
 
       {/* Analytical Result Table Preview (Max 20 rows per design.md) */}
       {message.tablePreview && message.tablePreview.rows && message.tablePreview.rows.length > 0 && (
-        <div className="mt-4 border border-[#DDD8CB] overflow-hidden">
+        <div className="mt-4 border border-[#DDD8CB] overflow-hidden max-w-full min-w-0">
           <div className="flex items-center justify-between px-3 py-2 bg-[#FAF9F6] border-b border-[#DDD8CB] text-xs">
-            <span className="font-mono text-[#6E6A60] text-[11px]">
+            <span className="font-mono text-[#6E6A60] text-[11px] truncate mr-2">
               Displaying {Math.min(20, message.tablePreview.rows.length)} of {message.tablePreview.rowCount ?? message.tablePreview.rows.length} rows
             </span>
             <button
               type="button"
               onClick={handleDownloadCsv}
-              className="text-[11px] font-mono text-[#C8501E] hover:underline flex items-center gap-1"
+              className="text-[11px] font-mono text-[#C8501E] hover:underline flex items-center gap-1 shrink-0 ml-auto"
             >
               <Download size={11} />
               <span>Export RFC 4180 CSV</span>
             </button>
           </div>
 
-          <div className="overflow-x-auto max-h-72">
+          <div className="overflow-x-auto max-w-full max-h-72">
             <table className="w-full text-left text-xs border-collapse">
               <thead className="bg-[#FAF9F6] sticky top-0 border-b border-[#DDD8CB]">
                 <tr>

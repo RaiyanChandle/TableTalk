@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import mongoose from 'mongoose';
-import { createConversationSchema, createMessageSchema } from '../schemas/index.js';
+import { createConversationSchema, createMessageSchema, updateConversationSchema } from '../schemas/index.js';
 import { Conversation } from '../models/Conversation.js';
 import { Message } from '../models/Message.js';
 
@@ -28,6 +28,21 @@ describe('Conversation Schemas Validation', () => {
       datasetIds: ['1', '2', '3', '4', '5', '6'],
     });
     assert.equal(overLimit.success, false);
+  });
+
+  it('validates conversation title rename schema', () => {
+    const valid = updateConversationSchema.safeParse({
+      title: 'Renamed Q3 Analytics',
+    });
+    assert.equal(valid.success, true);
+    if (valid.success) {
+      assert.equal(valid.data.title, 'Renamed Q3 Analytics');
+    }
+
+    const empty = updateConversationSchema.safeParse({
+      title: '   ',
+    });
+    assert.equal(empty.success, false);
   });
 
   it('validates message input schema', () => {

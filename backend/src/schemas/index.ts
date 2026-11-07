@@ -31,6 +31,10 @@ export const createConversationSchema = z.object({
   title: z.string().trim().optional(),
 });
 
+export const updateConversationSchema = z.object({
+  title: z.string().trim().min(1, 'Title cannot be empty').max(100, 'Title cannot exceed 100 characters'),
+});
+
 export const createMessageSchema = z.object({
   content: z.string().trim().min(1, 'Question cannot be empty'),
 });
@@ -52,6 +56,7 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RenameDatasetInput = z.infer<typeof renameDatasetSchema>;
 export type CreateConversationInput = z.infer<typeof createConversationSchema>;
+export type UpdateConversationInput = z.infer<typeof updateConversationSchema>;
 export type CreateMessageInput = z.infer<typeof createMessageSchema>;
 export type ChartSpec = z.infer<typeof chartSpecSchema>;
 export type ChartType = z.infer<typeof chartTypeSchema>;

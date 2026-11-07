@@ -13,6 +13,7 @@ import {
   getConversationsApi,
   getMessagesApi,
   streamMessageApi,
+  updateConversationApi,
 } from '../api/conversations';
 import { deleteDatasetApi, getDatasetsApi, uploadDatasetsApi } from '../api/datasets';
 import { generateSuggestedQuestions } from '../utils/suggestedQuestions';
@@ -240,6 +241,18 @@ export const AppPage: React.FC = () => {
     }
   };
 
+  // Rename conversation
+  const handleRenameConversation = async (id: string, newTitle: string) => {
+    try {
+      const updated = await updateConversationApi(id, { title: newTitle });
+      setConversations((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, title: updated.title } : c))
+      );
+    } catch (err) {
+      console.error('Failed to rename conversation:', err);
+    }
+  };
+
   // Send question and stream response
   const handleSendQuestion = async (queryText?: string) => {
     const textToSend = (queryText || question).trim();
@@ -366,11 +379,12 @@ export const AppPage: React.FC = () => {
           loadingConversations={loadingConversations}
           setActiveConversationId={setActiveConversationId}
           handleDeleteConversation={handleDeleteConversation}
+          handleRenameConversation={handleRenameConversation}
           onNewAnalysis={handleNewAnalysis}
         />
 
         {/* Main Stage (Chat / Report) */}
-        <main className="flex-1 flex flex-col min-w-0 bg-slate-50 h-full overflow-hidden">
+        <main className="flex-1 flex flex-col min-w-0 bg-[#F6F4EF] h-full overflow-hidden">
           {/* Modular Chat Header & Tabs */}
           <ChatHeader
             activeConversation={activeConversation}
@@ -378,11 +392,12 @@ export const AppPage: React.FC = () => {
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             setMobileSidebarOpen={setMobileSidebarOpen}
+            onRenameConversation={handleRenameConversation}
           />
 
           {/* Stage Body */}
-          <div className="flex-1 overflow-y-auto p-6 flex flex-col">
-            <div className="max-w-3xl w-full mx-auto flex-1 flex flex-col">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 flex flex-col min-w-0">
+            <div className="max-w-3xl w-full mx-auto flex-1 flex flex-col min-w-0">
               {/* Tab 2: Living Analysis Report */}
               {activeTab === 'report' ? (
                 <ReportView
@@ -393,7 +408,7 @@ export const AppPage: React.FC = () => {
                 />
               ) : (
                 /* Tab 1: Chat Feed */
-                <div className="flex-1 flex flex-col justify-between">
+                <div className="flex-1 flex flex-col justify-between min-w-0">
                   {/* Empty State */}
                   {!activeConversation || (messages.length === 0 && !isStreaming) ? (
                     <EmptyState
@@ -403,9 +418,9 @@ export const AppPage: React.FC = () => {
                     />
                   ) : (
                     /* Messages List */
-                    <div className="space-y-4 pb-6">
+                    <div className="space-y-4 pb-6 min-w-0 w-full">
                       {loadingMessages ? (
-                        <div className="p-8 text-center text-xs font-mono text-slate-400">
+                        <div className="p-8 text-center text-xs font-mono text-[#6E6A60]">
                           Loading message history...
                         </div>
                       ) : (

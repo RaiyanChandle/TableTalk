@@ -45,6 +45,14 @@ export async function deleteConversationApi(id: string): Promise<void> {
   });
 }
 
+export async function updateConversationApi(id: string, params: { title: string }): Promise<Conversation> {
+  const data = await apiFetch<{ conversation: Conversation }>(`/api/conversations/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(params),
+  });
+  return data.conversation;
+}
+
 export async function getMessagesApi(id: string): Promise<Message[]> {
   const data = await apiFetch<{ messages: Message[] }>(`/api/conversations/${id}/messages`, {
     method: 'GET',

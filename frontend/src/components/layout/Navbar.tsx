@@ -21,18 +21,18 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="h-14 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-xs z-30">
+    <header className="h-14 px-6 bg-white border-b border-[#DDD8CB] flex items-center justify-between shrink-0 z-30">
       {/* Brand */}
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-md bg-[#C8501E] flex items-center justify-center text-white shadow-xs">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-sm bg-[#C8501E] flex items-center justify-center text-white">
           <Database size={16} />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="font-semibold text-slate-900 text-base tracking-tight">
+          <span className="font-serif font-bold text-[#1F1E1B] text-lg tracking-tight">
             TableTalk
           </span>
-          <span className="text-[10px] font-mono uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 font-medium">
-            v1.0
+          <span className="text-[10px] font-mono uppercase bg-[#EFECE4] text-[#6E6A60] px-1.5 py-0.5 rounded border border-[#DDD8CB] font-medium">
+            TableTalk
           </span>
         </div>
       </div>
@@ -40,16 +40,16 @@ export const Navbar: React.FC = () => {
       {/* User Actions */}
       {user && (
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-md border border-slate-200">
-            <UserIcon size={13} className="text-slate-400" />
-            <span className="font-medium text-slate-700">{user.email}</span>
+          <div className="flex items-center gap-2 text-xs text-[#1F1E1B] bg-[#FAF9F6] px-2.5 py-1.5 rounded border border-[#DDD8CB]">
+            <UserIcon size={13} className="text-[#6E6A60]" />
+            <span className="font-medium">{user.email}</span>
           </div>
 
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-md transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#6E6A60] hover:text-[#C8501E] hover:bg-[#FAF9F6] border border-[#DDD8CB] rounded transition-colors"
             title="Log out of session"
           >
             <LogOut size={13} />

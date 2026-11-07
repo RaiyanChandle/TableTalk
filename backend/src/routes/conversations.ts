@@ -6,7 +6,7 @@ import { Conversation, IDatasetSnapshot } from '../models/Conversation.js';
 import { Message } from '../models/Message.js';
 import { Dataset } from '../models/Dataset.js';
 import { RunLog } from '../models/RunLog.js';
-import { createConversationSchema, createMessageSchema } from '../schemas/index.js';
+import { createConversationSchema, createMessageSchema, updateConversationSchema } from '../schemas/index.js';
 import { createSandbox } from '../services/sandbox/createSandbox.js';
 import { runAgent, ChatHistoryItem } from '../services/agent/runAgent.js';
 import { DatasetToolContext } from '../services/agent/tools.js';
@@ -154,6 +154,62 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     });
     return;
   }
+
+  res.status(200).json({
+    conversation: {
+      id: conversation._id.toString(),
+      title: conversation.title,
+      datasetIds: conversation.datasetIds.map((dId) => dId.toString()),
+      datasetSnapshots: conversation.datasetSnapshots,
+      readOnly: conversation.readOnly,
+      createdAt: conversation.createdAt.toISOString(),
+      updatedAt: conversation.updatedAt.toISOString(),
+    },
+  });
+});
+
+/**
+ * PATCH /api/conversations/:id
+ * Rename conversation title
+ */
+router.patch('/:id', async (req: Request, res: Response): Promise<void> => {
+  const userId = req.user!.id;
+  const id = req.params.id as string;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(404).json({
+      error: { code: 'NOT_FOUND', message: 'Conversation not found' },
+    });
+    return;
+  }
+
+  const parseResult = updateConversationSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid title',
+        detail: parseResult.error.flatten(),
+      },
+    });
+    return;
+  }
+
+  const conversation = await Conversation.findOne({
+    _id: new mongoose.Types.ObjectId(id),
+    userId: new mongoose.Types.ObjectId(userId),
+  });
+
+  if (!conversation) {
+    res.status(404).json({
+      error: { code: 'NOT_FOUND', message: 'Conversation not found' },
+    });
+    return;
+  }
+
+  conversation.title = parseResult.data.title;
+  conversation.updatedAt = new Date();
+  await conversation.save();
 
   res.status(200).json({
     conversation: {

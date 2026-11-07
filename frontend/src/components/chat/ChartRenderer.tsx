@@ -277,8 +277,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
   };
 
   return (
-    <div ref={containerRef} className="my-6 p-4 bg-white border border-[#DDD8CB]">
-      <div className="flex items-center justify-between border-b border-[#DDD8CB] pb-2 mb-4">
+    <div ref={containerRef} className="my-6 p-4 bg-white border border-[#DDD8CB] max-w-full min-w-0 overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#DDD8CB] pb-2 mb-4">
         <div>
           <h4 className="text-sm font-serif font-bold text-[#22201D]">{title}</h4>
           <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B665D]">
@@ -288,7 +288,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
         <button
           onClick={handleDownloadPng}
           disabled={downloading}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-sans text-[#6B665D] hover:text-[#22201D] border border-[#DDD8CB] bg-[#F6F4EF] hover:bg-[#EFECE4] transition-colors"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-sans text-[#6B665D] hover:text-[#22201D] border border-[#DDD8CB] bg-[#F6F4EF] hover:bg-[#EFECE4] transition-colors shrink-0"
           title="Download chart as PNG image"
         >
           <Download size={12} />
@@ -296,7 +296,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
         </button>
       </div>
 
-      <div className="w-full">{renderChart()}</div>
+      <div className="w-full min-w-0 overflow-hidden">{renderChart()}</div>
     </div>
   );
 };
