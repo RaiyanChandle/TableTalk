@@ -49,7 +49,7 @@ export const LandingPage: React.FC = () => {
         <div className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#4E473C] font-sans">
           <span className="text-[#D05C2B] text-base leading-none select-none">✦</span>
           <span>
-            Introducing TableTalk v1.0 — Ask questions on your data in plain English and get SQL, results, and insights instantly.
+            Introducing TableTalk v1.0 - Ask questions on your data in plain English and get SQL, results, and insights instantly.
           </span>
         </div>
       </div>
@@ -102,14 +102,24 @@ export const LandingPage: React.FC = () => {
       <main className="relative z-10 flex-1 flex flex-col justify-center items-center text-center px-4 pt-6 pb-8 sm:pt-8 sm:pb-12 max-w-4xl mx-auto w-full">
         {/* Main Headline */}
         <h1 className="relative font-serif font-bold text-[#261C14] text-5xl sm:text-6xl md:text-[72px] leading-[1.08] tracking-tight">
-          <span className="relative inline-block">
-            Talk to your database
-            {/* 3 Radiating sparks top-right */}
-            <span className="absolute -top-3 sm:-top-4 -right-7 sm:-right-9 text-[#D05C2B] select-none" aria-hidden="true">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="2" x2="12" y2="7" />
-                <line x1="4" y1="7" x2="8" y2="10" />
-                <line x1="20" y1="7" x2="16" y2="10" />
+          <span className="relative inline-flex items-center justify-center flex-wrap">
+            <span>Talk to your data</span>
+            {/* 3 Radiating sparks directly following the letter 'e' */}
+            <span className="inline-block relative -top-3 sm:-top-5 ml-1 select-none pointer-events-none" aria-hidden="true">
+              <svg
+                width="34"
+                height="34"
+                viewBox="0 0 32 32"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-6 h-6 sm:w-8 sm:h-8"
+              >
+                {/* Top upright dash */}
+                <line x1="7" y1="14" x2="6" y2="2" stroke="#D05C2B" strokeWidth="3.4" strokeLinecap="round" />
+                {/* 45-degree middle dash */}
+                <line x1="14" y1="18" x2="24" y2="8" stroke="#D05C2B" strokeWidth="3.4" strokeLinecap="round" />
+                {/* Horizontal lower dash */}
+                <line x1="17" y1="25" x2="29" y2="24" stroke="#D05C2B" strokeWidth="3.4" strokeLinecap="round" />
               </svg>
             </span>
           </span>
