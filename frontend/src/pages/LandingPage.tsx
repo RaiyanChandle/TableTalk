@@ -56,7 +56,7 @@ export const LandingPage: React.FC = () => {
       </div>
 
       {/* 2. Top Navigation Bar */}
-      <header className="relative z-10 max-w-6xl w-full mx-auto px-6 py-4 flex items-center justify-between">
+      <header className="relative z-10 max-w-6xl w-full mx-auto px-6 py-3 flex items-center justify-between">
         {/* Brand */}
         <Link to="/" className="flex items-center gap-3 group">
           <div className="w-9 h-9 rounded-xl bg-[#D05C2B] flex items-center justify-center text-white shadow-2xs transition-transform group-hover:scale-105">
@@ -120,7 +120,7 @@ export const LandingPage: React.FC = () => {
       </header>
 
       {/* 3. Hero Section */}
-      <main className="relative z-10 flex-1 flex flex-col justify-center items-center text-center px-4 pt-16 pb-12 sm:pt-24 sm:pb-20 max-w-4xl mx-auto w-full">
+      <main className="relative z-10 flex-1 flex flex-col justify-center items-center text-center px-4 pt-6 pb-8 sm:pt-8 sm:pb-12 max-w-4xl mx-auto w-full">
         {/* Main Headline */}
         <h1 className="relative font-serif font-bold text-[#261C14] text-5xl sm:text-6xl md:text-[72px] leading-[1.08] tracking-tight">
           <span className="relative inline-block">
@@ -135,20 +135,20 @@ export const LandingPage: React.FC = () => {
             </span>
           </span>
           <br />
-          <span className="font-serif italic font-normal text-[#D05C2B] block mt-1 sm:mt-2">
+          <span className="font-serif italic font-normal text-[#D05C2B] block mt-1 sm:mt-1.5">
             in plain English
           </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="mt-6 text-base sm:text-lg text-[#5C5549] max-w-2xl mx-auto leading-relaxed font-sans">
+        <p className="mt-5 text-base sm:text-lg text-[#5C5549] max-w-2xl mx-auto leading-relaxed font-sans">
           A simple RAG-powered tool that understands your data,
           <br className="hidden sm:inline" />
           {' '}generates SQL, runs it, and gives you clear answers — no SQL required.
         </p>
 
         {/* Feature Flow Pills (The 3 badges) */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <div className="px-4 py-2 bg-[#FAF5EC] border border-[#E6DCCE] rounded-full text-xs sm:text-sm font-medium text-[#2B231D] flex items-center gap-2 shadow-2xs">
             <Database size={15} className="text-[#D05C2B]" />
             <span>Connect a database</span>
@@ -166,7 +166,7 @@ export const LandingPage: React.FC = () => {
         </div>
 
         {/* Hero CTA Buttons */}
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
           <Link
             to={user ? '/app' : '/register'}
             className="px-6 py-3.5 bg-[#261C14] hover:bg-[#150E0A] text-white text-sm sm:text-base font-semibold rounded-lg flex items-center gap-2 transition-all shadow-sm hover:scale-[1.01]"
@@ -186,7 +186,7 @@ export const LandingPage: React.FC = () => {
         </div>
 
         {/* Bottom Tagline / Divider */}
-        <div className="mt-16 sm:mt-24 w-full flex items-center justify-center gap-4 max-w-xl mx-auto px-4">
+        <div className="mt-8 sm:mt-11 w-full flex items-center justify-center gap-4 max-w-xl mx-auto px-4">
           <div className="h-px bg-[#E4DDD2] flex-1" />
           <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-[0.22em] text-[#7A7164] font-semibold whitespace-nowrap">
             Built for analysts, developers, and data teams
