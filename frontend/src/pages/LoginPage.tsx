@@ -36,12 +36,7 @@ export const LoginPage: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <div style={{ marginBottom: '32px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <img
-            src="/logo.svg"
-            alt="TableTalk"
-            style={{ width: '44px', height: '44px', objectFit: 'contain', marginBottom: '8px' }}
-          />
+        <div style={{ marginBottom: '32px', textAlign: 'center' }}>
           <span
             style={{
               fontFamily: 'Newsreader, Georgia, serif',

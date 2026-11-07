@@ -21,18 +21,20 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="h-14 px-6 bg-white border-b border-[#DDD8CB] flex items-center justify-between shrink-0 z-30">
+    <header className="h-16 px-6 bg-white border-b border-[#DDD8CB] flex items-center justify-between shrink-0 z-30">
       {/* Brand */}
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-sm bg-[#FAF9F6] border border-[#DDD8CB] flex items-center justify-center overflow-hidden p-0.5">
-          <img src="/logo.svg" alt="TableTalk logo" className="w-full h-full object-contain" />
-        </div>
+        <img
+          src="/logo.png"
+          alt="TableTalk Logo"
+          className="h-11 md:h-12 w-auto object-contain select-none"
+        />
         <div className="flex items-baseline gap-2">
-          <span className="font-serif font-bold text-[#1F1E1B] text-lg tracking-tight">
+          <span className="font-serif font-bold text-[#1F1E1B] text-xl tracking-tight">
             TableTalk
           </span>
-          <span className="text-[10px] font-mono uppercase bg-[#EFECE4] text-[#6E6A60] px-1.5 py-0.5 rounded border border-[#DDD8CB] font-medium">
-            DuckDB SQL
+          <span className="text-[10px] font-mono uppercase bg-[#EFECE4] text-[#6E6A60] px-1.5 py-0.5 rounded border border-[#DDD8CB] font-medium hidden sm:inline-block">
+            AI Data Analyst
           </span>
         </div>
       </div>
