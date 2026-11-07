@@ -73,7 +73,7 @@ export const LandingPage: React.FC = () => {
             ✦
           </span>
           <span>
-            Introducing TableTalk v1.0 — Ask questions on your data in plain English and get SQL, results, and insights instantly.
+            Introducing TableTalk v1.0 - Ask questions on your data in plain English and get SQL, results, and insights instantly.
           </span>
         </div>
       </div>
@@ -133,7 +133,7 @@ export const LandingPage: React.FC = () => {
           <span>
             Talk to your{' '}
             <span className="relative inline-block group/spark cursor-default">
-              database
+              Data
               {/* Radiating 3-dash burst directly at top-right of 'e' in 'database' matching user reference */}
               <span
                 className="absolute -top-1.5 sm:-top-2.5 -right-6 sm:-right-8 select-none pointer-events-none animate-spark-pulse group-hover/spark:scale-115 transition-transform duration-300"
@@ -195,7 +195,7 @@ export const LandingPage: React.FC = () => {
         >
           A simple RAG-powered tool that understands your data,
           <br className="hidden sm:inline" />
-          {' '}generates SQL, runs it, and gives you clear answers — no SQL required.
+          {' '}generates SQL, runs it, and gives you clear answers - no SQL required.
         </p>
 
         {/* Feature Flow Pills (The 3 badges with gentle floating animation and interactive hover lift) */}
