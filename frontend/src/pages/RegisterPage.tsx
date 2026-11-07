@@ -58,19 +58,19 @@ export const RegisterPage: React.FC = () => {
       </div>
 
       {/* Content Container */}
-      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center mt-6">
-        {/* Auth Card with circular crest badge extending over the top border */}
-        <div className="relative w-full bg-white border border-[#DDD8CB] rounded-2xl pt-13 pb-8 px-8 sm:px-9 shadow-lg shadow-stone-900/5">
-          {/* Circular Crest Badge holding just the Logo */}
+      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center mt-8">
+        {/* Auth Card with circular extension over the top border */}
+        <div className="relative w-full bg-white border border-[#DDD8CB] rounded-2xl pt-15 pb-8 px-8 sm:px-9 shadow-lg shadow-stone-900/5">
+          {/* Borderless circular extension holding large logo without animations */}
           <Link
             to="/"
             title="Back to TableTalk Home"
-            className="group absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-white border border-[#DDD8CB] flex items-center justify-center shadow-xs hover:shadow-md hover:scale-105 transition-all duration-200"
+            className="absolute -top-11 sm:-top-12 left-1/2 -translate-x-1/2 w-22 h-22 sm:w-24 sm:h-24 rounded-full bg-white flex items-center justify-center select-none"
           >
             <img
               src="/logo.png"
               alt="TableTalk Logo"
-              className="h-11 w-11 object-contain transition-transform duration-200 group-hover:scale-110"
+              className="h-16 w-16 sm:h-18 sm:w-18 object-contain"
             />
           </Link>
 
