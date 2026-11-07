@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Check,
   ChevronDown,
@@ -148,11 +149,21 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
       {message.content && (
         <div className="prose prose-sm max-w-none text-[#1F1E1B] leading-relaxed mb-5 font-sans break-words min-w-0 overflow-hidden">
           <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
             components={{
               p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-[14px] break-words">{children}</p>,
               ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1 text-[13px]">{children}</ul>,
               ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1 text-[13px]">{children}</ol>,
               strong: ({ children }) => <strong className="font-semibold text-[#1F1E1B]">{children}</strong>,
+              table: ({ children }) => (
+                <div className="my-3 overflow-x-auto border border-[#DDD8CB] rounded max-w-full">
+                  <table className="w-full text-left text-xs border-collapse font-sans">{children}</table>
+                </div>
+              ),
+              thead: ({ children }) => <thead className="bg-[#FAF9F6] border-b border-[#DDD8CB] text-[#1F1E1B]">{children}</thead>,
+              tbody: ({ children }) => <tbody className="divide-y divide-[#EBE7DD] bg-white">{children}</tbody>,
+              th: ({ children }) => <th className="px-3 py-1.5 font-semibold text-[11px] border-r border-[#DDD8CB] last:border-r-0 whitespace-nowrap">{children}</th>,
+              td: ({ children }) => <td className="px-3 py-1.5 text-[12px] border-r border-[#EBE7DD] last:border-r-0">{children}</td>,
               code: ({ children }) => (
                 <code className="px-1.5 py-0.5 font-mono text-xs bg-[#FAF9F6] text-[#C8501E] rounded border border-[#DDD8CB] break-words break-all">
                   {children}

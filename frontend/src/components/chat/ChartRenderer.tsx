@@ -18,7 +18,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Download, AlertCircle, BarChart3, LineChart as LineIcon, AreaChart as AreaIcon, PieChart as PieIcon } from 'lucide-react';
+import {
+  Download,
+  AlertCircle,
+  BarChart3,
+  LineChart as LineIcon,
+  AreaChart as AreaIcon,
+  PieChart as PieIcon,
+  Check,
+} from 'lucide-react';
 import type { ChartSpec, ChartType } from '../../types';
 
 interface ChartRendererProps {
@@ -29,7 +37,9 @@ const PALETTE = ['#C8501E', '#2A4B7C', '#3E7A5E', '#B28228', '#7D4E7B', '#8C4351
 
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [activeType, setActiveType] = useState<ChartType>(spec?.type || 'bar');
 
   if (!spec || !spec.data || spec.data.length === 0) {
@@ -44,38 +54,101 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
   const { title, xKey, yKeys, xLabel, yLabel, data } = spec;
 
   const handleDownloadPng = async () => {
-    if (!containerRef.current) return;
+    if (!chartWrapperRef.current) return;
     try {
       setDownloading(true);
-      const svgElement = containerRef.current.querySelector('svg');
-      if (!svgElement) return;
 
-      const svgString = new XMLSerializer().serializeToString(svgElement);
+      // Targeted selector: find the actual recharts SVG, NOT the toolbar Lucide icons!
+      const svgElement =
+        chartWrapperRef.current.querySelector<SVGSVGElement>('svg.recharts-surface') ||
+        chartWrapperRef.current.querySelector<SVGSVGElement>('svg');
+
+      if (!svgElement) {
+        console.warn('No chart SVG found inside chartWrapperRef');
+        setDownloading(false);
+        return;
+      }
+
+      // Clone SVG and ensure width/height and XML namespaces are explicit for Image rendering
+      const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
+      const svgWidth = svgElement.clientWidth || 800;
+      const svgHeight = svgElement.clientHeight || 360;
+
+      clonedSvg.setAttribute('width', String(svgWidth));
+      clonedSvg.setAttribute('height', String(svgHeight));
+      clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+      const svgString = new XMLSerializer().serializeToString(clonedSvg);
       const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
       const blobURL = URL.createObjectURL(svgBlob);
 
       const image = new Image();
       image.onload = () => {
+        // 2x HiDPI resolution canvas
+        const scale = 2;
+        const headerHeight = 76;
+        const totalWidth = svgWidth * scale;
+        const totalHeight = (svgHeight + headerHeight + 20) * scale;
+
         const canvas = document.createElement('canvas');
-        canvas.width = svgElement.clientWidth * 2 || 1200;
-        canvas.height = svgElement.clientHeight * 2 || 700;
+        canvas.width = totalWidth;
+        canvas.height = totalHeight;
         const ctx = canvas.getContext('2d');
+
         if (ctx) {
+          // 1. Crisp white background
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+          // 2. Chart Title
+          ctx.fillStyle = '#1F1E1B';
+          ctx.font = 'bold 36px "Newsreader", Georgia, serif';
+          ctx.fillText(title || 'TableTalk Analytical Chart', 24 * scale, 34 * scale);
+
+          // 3. Metadata Subtitle
+          ctx.fillStyle = '#6E6A60';
+          ctx.font = '600 20px "IBM Plex Mono", monospace';
+          ctx.fillText(
+            `TABLETALK · ${activeType.toUpperCase()} VIEW · ${data.length} DATA POINTS`,
+            24 * scale,
+            54 * scale
+          );
+
+          // 4. Subtle separator line
+          ctx.strokeStyle = '#DDD8CB';
+          ctx.lineWidth = 1.5 * scale;
+          ctx.beginPath();
+          ctx.moveTo(24 * scale, 64 * scale);
+          ctx.lineTo(canvas.width - 24 * scale, 64 * scale);
+          ctx.stroke();
+
+          // 5. Draw the rasterized chart SVG
+          ctx.drawImage(image, 0, headerHeight * scale, svgWidth * scale, svgHeight * scale);
+
+          // 6. Trigger PNG download
           const pngUrl = canvas.toDataURL('image/png');
           const downloadLink = document.createElement('a');
-          const safeName = (title || 'chart').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+          const safeName = (title || 'tabletalk_chart').toLowerCase().replace(/[^a-z0-9]+/g, '_');
           downloadLink.download = `${safeName}.png`;
           downloadLink.href = pngUrl;
           document.body.appendChild(downloadLink);
           downloadLink.click();
           document.body.removeChild(downloadLink);
+
+          setDownloadSuccess(true);
+          setTimeout(() => setDownloadSuccess(false), 2000);
         }
+
         URL.revokeObjectURL(blobURL);
         setDownloading(false);
       };
+
+      image.onerror = () => {
+        console.error('Failed to rasterize chart SVG to image');
+        URL.revokeObjectURL(blobURL);
+        setDownloading(false);
+      };
+
       image.src = blobURL;
     } catch (err) {
       console.error('Failed to download chart PNG:', err);
@@ -105,8 +178,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
-                  borderRadius: '0px',
-                  boxShadow: 'none',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   fontSize: '12px',
                   fontFamily: 'IBM Plex Sans, sans-serif',
                 }}
@@ -139,8 +212,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
-                  borderRadius: '0px',
-                  boxShadow: 'none',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   fontSize: '12px',
                   fontFamily: 'IBM Plex Sans, sans-serif',
                 }}
@@ -181,8 +254,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
-                  borderRadius: '0px',
-                  boxShadow: 'none',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   fontSize: '12px',
                   fontFamily: 'IBM Plex Sans, sans-serif',
                 }}
@@ -211,8 +284,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
-                  borderRadius: '0px',
-                  boxShadow: 'none',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   fontSize: '12px',
                   fontFamily: 'IBM Plex Sans, sans-serif',
                 }}
@@ -261,8 +334,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                 contentStyle={{
                   backgroundColor: '#FFFFFF',
                   borderColor: '#DDD8CB',
-                  borderRadius: '0px',
-                  boxShadow: 'none',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   fontSize: '12px',
                   fontFamily: 'IBM Plex Sans, sans-serif',
                 }}
@@ -293,7 +366,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
             <button
               type="button"
               onClick={() => setActiveType('bar')}
-              className={`p-1 rounded text-xs transition-colors ${
+              className={`p-1.5 rounded text-xs transition-colors ${
                 activeType === 'bar' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
               }`}
               title="Switch to Bar chart"
@@ -303,7 +376,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
             <button
               type="button"
               onClick={() => setActiveType('line')}
-              className={`p-1 rounded text-xs transition-colors ${
+              className={`p-1.5 rounded text-xs transition-colors ${
                 activeType === 'line' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
               }`}
               title="Switch to Line chart"
@@ -313,7 +386,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
             <button
               type="button"
               onClick={() => setActiveType('area')}
-              className={`p-1 rounded text-xs transition-colors ${
+              className={`p-1.5 rounded text-xs transition-colors ${
                 activeType === 'area' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
               }`}
               title="Switch to Area chart"
@@ -323,7 +396,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
             <button
               type="button"
               onClick={() => setActiveType('pie')}
-              className={`p-1 rounded text-xs transition-colors ${
+              className={`p-1.5 rounded text-xs transition-colors ${
                 activeType === 'pie' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
               }`}
               title="Switch to Pie chart"
@@ -336,15 +409,27 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
             onClick={handleDownloadPng}
             disabled={downloading}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-sans text-[#6B665D] hover:text-[#1F1E1B] border border-[#DDD8CB] bg-[#FAF9F6] hover:bg-[#EFECE4] rounded transition-colors shrink-0"
-            title="Download chart as PNG image"
+            title="Download high-resolution chart PNG"
           >
-            <Download size={12} />
-            <span>{downloading ? 'Exporting...' : 'PNG'}</span>
+            {downloadSuccess ? (
+              <>
+                <Check size={12} className="text-emerald-600" />
+                <span className="text-emerald-700 font-medium">Saved!</span>
+              </>
+            ) : (
+              <>
+                <Download size={12} />
+                <span>{downloading ? 'Exporting...' : 'PNG'}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
 
-      <div className="w-full min-w-0 overflow-hidden">{renderChart()}</div>
+      {/* Dedicated wrapper ref for SVG chart isolation */}
+      <div ref={chartWrapperRef} className="w-full min-w-0 overflow-hidden">
+        {renderChart()}
+      </div>
     </div>
   );
 };

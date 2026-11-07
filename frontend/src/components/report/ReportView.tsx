@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Download, ArrowLeft, RefreshCw, AlertCircle } from 'lucide-react';
 import { getReportApi, getReportDownloadUrl } from '../../api/conversations';
 import type { AnalysisReport, Conversation } from '../../types';
@@ -74,7 +75,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
           <a
             href={getReportDownloadUrl(activeConversation.id)}
             download
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-medium text-white bg-[#1F1E1B] hover:bg-[#C8501E] rounded transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-medium text-white bg-[#1F1E1B] hover:bg-[#C8501E] rounded transition-colors shadow-2xs"
             title="Download full Markdown audit report"
           >
             <Download size={13} />
@@ -156,17 +157,18 @@ export const ReportView: React.FC<ReportViewProps> = ({
           </div>
 
           {/* Living Document Sheet */}
-          <div className="bg-white border border-[#DDD8CB] p-6 md:p-10 shadow-none font-sans text-[#1F1E1B]">
+          <div className="bg-white border border-[#DDD8CB] p-6 sm:p-8 md:p-12 shadow-sm font-sans text-[#1F1E1B] max-w-4xl mx-auto rounded-lg">
             <div className="prose prose-sm max-w-none">
               <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
                 components={{
                   h1: ({ children }) => (
-                    <h1 className="text-2xl md:text-3xl font-serif font-bold text-[#1F1E1B] pb-3 mb-2 border-b-2 border-[#1F1E1B]">
+                    <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#1F1E1B] pb-3 mb-4 border-b-2 border-[#1F1E1B]">
                       {children}
                     </h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 className="text-lg md:text-xl font-serif font-bold text-[#1F1E1B] mt-8 mb-3 pb-1 border-b border-[#DDD8CB]">
+                    <h2 className="text-lg sm:text-xl font-serif font-bold text-[#1F1E1B] mt-8 mb-3 pb-1 border-b border-[#DDD8CB]">
                       {children}
                     </h2>
                   ),
@@ -179,19 +181,19 @@ export const ReportView: React.FC<ReportViewProps> = ({
                     <p className="text-[14px] leading-relaxed text-[#1F1E1B] mb-3">{children}</p>
                   ),
                   ul: ({ children }) => (
-                    <ul className="list-disc pl-5 mb-4 space-y-1 text-[13px] text-[#1F1E1B]">{children}</ul>
+                    <ul className="list-disc pl-5 mb-4 space-y-1.5 text-[13px] text-[#1F1E1B]">{children}</ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="list-decimal pl-5 mb-4 space-y-1 text-[13px] text-[#1F1E1B]">{children}</ol>
+                    <ol className="list-decimal pl-5 mb-4 space-y-1.5 text-[13px] text-[#1F1E1B]">{children}</ol>
                   ),
                   blockquote: ({ children }) => (
-                    <blockquote className="border-l-2 border-[#C8501E] pl-3 py-1 my-3 bg-[#FAF9F6] text-xs font-mono text-[#6E6A60]">
+                    <blockquote className="border-l-3 border-[#C8501E] pl-3 py-1.5 my-3 bg-[#FAF9F6] text-xs font-mono text-[#5C5549] rounded-r">
                       {children}
                     </blockquote>
                   ),
                   table: ({ children }) => (
-                    <div className="my-4 overflow-x-auto border border-[#DDD8CB] rounded">
-                      <table className="w-full text-left text-xs border-collapse font-mono">
+                    <div className="my-5 overflow-x-auto border border-[#DDD8CB] rounded-md max-w-full shadow-2xs">
+                      <table className="w-full text-left text-xs border-collapse">
                         {children}
                       </table>
                     </div>
@@ -206,25 +208,33 @@ export const ReportView: React.FC<ReportViewProps> = ({
                       {children}
                     </tbody>
                   ),
+                  tr: ({ children }) => (
+                    <tr className="hover:bg-[#FAF9F6]/60 transition-colors">
+                      {children}
+                    </tr>
+                  ),
                   th: ({ children }) => (
-                    <th className="px-3 py-2 text-[11px] font-semibold border-r border-[#DDD8CB] last:border-r-0 whitespace-nowrap">
+                    <th className="px-3.5 py-2.5 text-[11px] font-semibold text-[#1F1E1B] border-r border-[#DDD8CB] last:border-r-0 whitespace-nowrap font-mono">
                       {children}
                     </th>
                   ),
                   td: ({ children }) => (
-                    <td className="px-3 py-1.5 text-[11px] border-r border-[#EBE7DD] last:border-r-0 whitespace-nowrap text-[#1F1E1B]">
+                    <td className="px-3.5 py-2 text-[12px] border-r border-[#EBE7DD] last:border-r-0 text-[#2B2723]">
                       {children}
                     </td>
                   ),
                   code: ({ children }) => (
-                    <code className="px-1 py-0.5 font-mono text-[11px] bg-[#FAF9F6] text-[#C8501E] rounded border border-[#DDD8CB]">
+                    <code className="px-1.5 py-0.5 font-mono text-[11px] bg-[#FAF9F6] text-[#C8501E] rounded border border-[#DDD8CB] break-words">
                       {children}
                     </code>
                   ),
                   pre: ({ children }) => (
-                    <pre className="p-3 my-3 bg-[#1A1915] text-emerald-300 rounded border border-[#1F1E1B] text-xs font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">
+                    <pre className="p-4 my-4 bg-[#1A1915] text-emerald-300 rounded border border-[#2B231D] text-xs font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed shadow-xs">
                       {children}
                     </pre>
+                  ),
+                  hr: () => (
+                    <hr className="my-6 border-t border-[#DDD8CB]" />
                   ),
                 }}
               >
