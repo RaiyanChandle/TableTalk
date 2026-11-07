@@ -302,12 +302,22 @@ export const MessageCard: React.FC<MessageCardProps> = ({ message, tablesUsed = 
         </div>
       )}
 
-      {/* Visual Chart Presentation */}
-      {message.chartSpec && (
-        <div className="my-4 min-w-0 max-w-full overflow-hidden">
-          <ChartRenderer spec={message.chartSpec} />
-        </div>
-      )}
+      {/* Visual Chart Presentation (Supports 1 or multiple charts) */}
+      {(() => {
+        const charts = message.chartSpecs && message.chartSpecs.length > 0
+          ? message.chartSpecs
+          : (message.chartSpec ? [message.chartSpec] : []);
+
+        if (charts.length === 0) return null;
+
+        return (
+          <div className="my-4 space-y-4 min-w-0 max-w-full overflow-hidden">
+            {charts.map((spec, i) => (
+              <ChartRenderer key={`msg-${message.id}-chart-${i}`} spec={spec} />
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Analytical Result Table Preview (Max 20 rows per design.md) */}
       {message.tablePreview && message.tablePreview.rows && message.tablePreview.rows.length > 0 && (

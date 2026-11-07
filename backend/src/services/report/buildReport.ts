@@ -1,8 +1,8 @@
 import { Types } from 'mongoose';
-import { Conversation } from '../../models/Conversation';
-import { RunLog, IRunLog } from '../../models/RunLog';
-import { User } from '../../models/User';
-import { findCandidateJoins, TableInfo } from '../sandbox/candidateJoins';
+import { Conversation, type IDatasetSnapshot } from '../../models/Conversation.js';
+import { RunLog, type IRunLog } from '../../models/RunLog.js';
+import { User } from '../../models/User.js';
+import { findCandidateJoins, type TableInfo } from '../sandbox/candidateJoins.js';
 
 export interface IReportStats {
   totalQuestions: number;
@@ -59,9 +59,9 @@ export async function buildReport(
 
   // Snapshot tables info
   const snapshots = conv.datasetSnapshots || [];
-  const tableInfos: TableInfo[] = snapshots.map((s) => ({
+  const tableInfos: TableInfo[] = snapshots.map((s: IDatasetSnapshot) => ({
     tableName: s.tableName,
-    columns: s.columns.map((c) => ({ name: c.name, type: c.type })),
+    columns: s.columns.map((c: { name: string; type: string }) => ({ name: c.name, type: c.type })),
   }));
 
   // Detected candidate joins
@@ -185,7 +185,7 @@ export async function buildReport(
     `in an isolated DuckDB sandbox.`
   );
   lines.push('');
-  lines.push(`- **Session Scope:** ${snapshots.map((s) => `\`${s.tableName}\``).join(', ') || 'None'}`);
+  lines.push(`- **Session Scope:** ${snapshots.map((s: IDatasetSnapshot) => `\`${s.tableName}\``).join(', ') || 'None'}`);
   lines.push(`- **Total Analytical Questions:** ${totalQuestions}`);
   lines.push(`- **Total SQL Executions:** ${totalSqlAttempts} attempts`);
   lines.push(`- **Visualizations Produced:** ${chartsCount} charts`);
@@ -199,7 +199,7 @@ export async function buildReport(
   lines.push('| Table Name | Original Filename | Rows | Columns & Types |');
   lines.push('|:---|:---|---:|:---|');
   for (const s of snapshots) {
-    const colList = s.columns.map((c) => `\`${c.name}\` (${c.type})`).join(', ');
+    const colList = s.columns.map((c: { name: string; type: string }) => `\`${c.name}\` (${c.type})`).join(', ');
     lines.push(`| \`${s.tableName}\` | ${s.name} | ${s.rowCount.toLocaleString()} | ${colList} |`);
   }
   lines.push('');
@@ -300,7 +300,7 @@ export async function buildReport(
         lines.push(`| ${cols.join(' | ')} |`);
         lines.push(`| ${cols.map(() => ':---').join(' | ')} |`);
         for (const r of previewRows) {
-          const cells = cols.map((c) => escapeTableCell(r[c]));
+          const cells = cols.map((c: string) => escapeTableCell(r[c]));
           lines.push(`| ${cells.join(' | ')} |`);
         }
         lines.push('');
@@ -310,7 +310,7 @@ export async function buildReport(
       if (run.chart && run.chart.type) {
         lines.push('**Visualization Spec:**');
         lines.push(
-          `- **Type:** \`${run.chart.type}\` · **Title:** "${run.chart.title}" · **X-Axis:** \`${run.chart.xKey}\` · **Y-Axes:** ${run.chart.yKeys.map((k) => `\`${k}\``).join(', ')}`
+          `- **Type:** \`${run.chart.type}\` · **Title:** "${run.chart.title}" · **X-Axis:** \`${run.chart.xKey}\` · **Y-Axes:** ${run.chart.yKeys.map((k: string) => `\`${k}\``).join(', ')}`
         );
         lines.push('');
       }

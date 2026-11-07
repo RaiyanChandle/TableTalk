@@ -153,7 +153,6 @@ Mark items as you finish them.
 - [ ] Eval set: 25 questions on a sample multi-file dataset (e.g. `orders.csv`, `customers.csv`, `products.csv`) in `backend/evals/`
 - [ ] Script that runs the set and reports pass rate, average attempts, average latency, tokens
 - [ ] Cases for joins, join fan-out, name collisions, unanswerable questions, prompt injection in a cell
-- [ ] Optional: LangSmith tracing
 - [ ] Helmet, CORS allowlist, request size limits
 - [ ] Gemini rate-limit handling: backoff, friendly error, no crash
 - [ ] Log every executed SQL with userId, conversationId, duration (no raw data)

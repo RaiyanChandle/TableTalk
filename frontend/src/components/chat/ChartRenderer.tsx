@@ -18,8 +18,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Download, AlertCircle } from 'lucide-react';
-import type { ChartSpec } from '../../types';
+import { Download, AlertCircle, BarChart3, LineChart as LineIcon, AreaChart as AreaIcon, PieChart as PieIcon } from 'lucide-react';
+import type { ChartSpec, ChartType } from '../../types';
 
 interface ChartRendererProps {
   spec: ChartSpec;
@@ -30,6 +30,7 @@ const PALETTE = ['#C8501E', '#2A4B7C', '#3E7A5E', '#B28228', '#7D4E7B', '#8C4351
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [activeType, setActiveType] = useState<ChartType>(spec?.type || 'bar');
 
   if (!spec || !spec.data || spec.data.length === 0) {
     return (
@@ -40,7 +41,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
     );
   }
 
-  const { type, title, xKey, yKeys, xLabel, yLabel, data } = spec;
+  const { title, xKey, yKeys, xLabel, yLabel, data } = spec;
 
   const handleDownloadPng = async () => {
     if (!containerRef.current) return;
@@ -83,7 +84,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
   };
 
   const renderChart = () => {
-    switch (type) {
+    switch (activeType) {
       case 'bar':
         return (
           <ResponsiveContainer width="100%" height={320}>
@@ -218,7 +219,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
               />
               <Legend wrapperStyle={{ fontSize: 11, paddingTop: '8px' }} />
               <Pie
-                data={data}
+                data={data.slice(0, 15)}
                 dataKey={primaryYKey}
                 nameKey={xKey}
                 cx="50%"
@@ -230,7 +231,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
                   `${name ?? ''} (${((percent ?? 0) * 100).toFixed(0)}%)`
                 }
               >
-                {data.map((_, index) => (
+                {data.slice(0, 15).map((_, index) => (
                   <Cell key={`cell-${index}`} fill={PALETTE[index % PALETTE.length]} />
                 ))}
               </Pie>
@@ -277,23 +278,70 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ spec }) => {
   };
 
   return (
-    <div ref={containerRef} className="my-6 p-4 bg-white border border-[#DDD8CB] max-w-full min-w-0 overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#DDD8CB] pb-2 mb-4">
-        <div>
-          <h4 className="text-sm font-serif font-bold text-[#22201D]">{title}</h4>
+    <div ref={containerRef} className="my-6 p-4 bg-white border border-[#DDD8CB] max-w-full min-w-0 overflow-hidden rounded-md shadow-2xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DDD8CB] pb-3 mb-4">
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-serif font-bold text-[#1F1E1B] truncate">{title}</h4>
           <span className="text-[10px] font-mono uppercase tracking-wider text-[#6B665D]">
-            {type.toUpperCase()} CHART · {data.length} DATA POINTS
+            {activeType.toUpperCase()} VIEW · {data.length} DATA POINTS
           </span>
         </div>
-        <button
-          onClick={handleDownloadPng}
-          disabled={downloading}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-sans text-[#6B665D] hover:text-[#22201D] border border-[#DDD8CB] bg-[#F6F4EF] hover:bg-[#EFECE4] transition-colors shrink-0"
-          title="Download chart as PNG image"
-        >
-          <Download size={12} />
-          <span>{downloading ? 'Exporting...' : 'PNG'}</span>
-        </button>
+
+        {/* Dynamic Chart Type Switcher & PNG Export */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center bg-[#FAF9F6] border border-[#DDD8CB] rounded p-0.5">
+            <button
+              type="button"
+              onClick={() => setActiveType('bar')}
+              className={`p-1 rounded text-xs transition-colors ${
+                activeType === 'bar' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
+              }`}
+              title="Switch to Bar chart"
+            >
+              <BarChart3 size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveType('line')}
+              className={`p-1 rounded text-xs transition-colors ${
+                activeType === 'line' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
+              }`}
+              title="Switch to Line chart"
+            >
+              <LineIcon size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveType('area')}
+              className={`p-1 rounded text-xs transition-colors ${
+                activeType === 'area' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
+              }`}
+              title="Switch to Area chart"
+            >
+              <AreaIcon size={13} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveType('pie')}
+              className={`p-1 rounded text-xs transition-colors ${
+                activeType === 'pie' ? 'bg-[#1F1E1B] text-white shadow-2xs' : 'text-[#6B665D] hover:text-[#1F1E1B]'
+              }`}
+              title="Switch to Pie chart"
+            >
+              <PieIcon size={13} />
+            </button>
+          </div>
+
+          <button
+            onClick={handleDownloadPng}
+            disabled={downloading}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-sans text-[#6B665D] hover:text-[#1F1E1B] border border-[#DDD8CB] bg-[#FAF9F6] hover:bg-[#EFECE4] rounded transition-colors shrink-0"
+            title="Download chart as PNG image"
+          >
+            <Download size={12} />
+            <span>{downloading ? 'Exporting...' : 'PNG'}</span>
+          </button>
+        </div>
       </div>
 
       <div className="w-full min-w-0 overflow-hidden">{renderChart()}</div>

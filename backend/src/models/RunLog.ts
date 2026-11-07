@@ -61,6 +61,14 @@ export interface IRunLog {
     xLabel?: string;
     yLabel?: string;
   };
+  charts?: Array<{
+    type: string;
+    xKey: string;
+    yKeys: string[];
+    title: string;
+    xLabel?: string;
+    yLabel?: string;
+  }>;
   resultPreview?: {
     columns: string[];
     rows: Record<string, unknown>[];
@@ -144,6 +152,16 @@ const runLogSchema = new Schema<IRunLog>(
       xLabel: String,
       yLabel: String,
     },
+    charts: [
+      {
+        type: { type: String },
+        xKey: String,
+        yKeys: [String],
+        title: String,
+        xLabel: String,
+        yLabel: String,
+      },
+    ],
     resultPreview: {
       columns: [String],
       rows: [Schema.Types.Mixed],

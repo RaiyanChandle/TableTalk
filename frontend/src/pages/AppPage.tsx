@@ -52,6 +52,7 @@ export const AppPage: React.FC = () => {
   const [streamingSql, setStreamingSql] = useState<string | null>(null);
   const [streamingTable, setStreamingTable] = useState<TablePreview | null>(null);
   const [streamingChart, setStreamingChart] = useState<ChartSpec | null>(null);
+  const [streamingCharts, setStreamingCharts] = useState<ChartSpec[]>([]);
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -268,6 +269,7 @@ export const AppPage: React.FC = () => {
     setStreamingSql(null);
     setStreamingTable(null);
     setStreamingChart(null);
+    setStreamingCharts([]);
 
     // Optimistically add user question
     const tempUserMsg: Message = {
@@ -301,6 +303,7 @@ export const AppPage: React.FC = () => {
           },
           onChart: (data) => {
             setStreamingChart(data);
+            setStreamingCharts((prev) => [...prev, data]);
           },
           onToken: (data) => {
             setStreamingAnswer((prev) => prev + data.text);
@@ -438,6 +441,7 @@ export const AppPage: React.FC = () => {
                           streamingSql={streamingSql}
                           streamingTable={streamingTable}
                           streamingChart={streamingChart}
+                          streamingCharts={streamingCharts}
                           onStopStream={handleStopStream}
                         />
                       )}

@@ -42,6 +42,15 @@ export interface AgentExecutionState {
     yLabel?: string;
     data: Record<string, unknown>[];
   };
+  charts?: Array<{
+    type: 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+    xKey: string;
+    yKeys: string[];
+    title: string;
+    xLabel?: string;
+    yLabel?: string;
+    data: Record<string, unknown>[];
+  }>;
   joinsUsed: string[];
   callbacks?: AgentCallbacks;
 }
@@ -231,7 +240,7 @@ export function createAgentTools(
       }
 
       // Attach data server-side (max 500 rows)
-      state.createdChart = {
+      const chartObj = {
         type: input.type,
         xKey: input.xKey,
         yKeys: input.yKeys,
@@ -241,7 +250,13 @@ export function createAgentTools(
         data: stored.rows.slice(0, 500),
       };
 
-      state.callbacks?.onChart?.(state.createdChart);
+      state.createdChart = chartObj;
+      if (!state.charts) {
+        state.charts = [];
+      }
+      state.charts.push(chartObj);
+
+      state.callbacks?.onChart?.(chartObj);
 
       return JSON.stringify({
         ok: true,

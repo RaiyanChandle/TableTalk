@@ -304,6 +304,7 @@ router.get('/:id/messages', async (req: Request, res: Response): Promise<void> =
     sql: m.sql,
     tablePreview: m.tablePreview,
     chartSpec: m.chartSpec,
+    chartSpecs: m.chartSpecs && m.chartSpecs.length > 0 ? m.chartSpecs : (m.chartSpec ? [m.chartSpec] : []),
     error: m.error,
     runId: m.runId,
     createdAt: m.createdAt.toISOString(),
@@ -587,6 +588,7 @@ router.post('/:id/messages', chatRateLimiter, async (req: Request, res: Response
       sql: result.sql,
       tablePreview: result.table,
       chartSpec: result.chart,
+      chartSpecs: result.charts,
       error: result.status === 'failed' ? result.answer : undefined,
       runId: result.runId,
     });

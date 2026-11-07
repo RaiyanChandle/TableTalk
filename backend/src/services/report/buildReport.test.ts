@@ -1,10 +1,10 @@
 import test, { describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
-import { buildReport } from './buildReport';
-import { Conversation } from '../../models/Conversation';
-import { RunLog } from '../../models/RunLog';
-import { User } from '../../models/User';
+import { buildReport } from './buildReport.js';
+import { Conversation } from '../../models/Conversation.js';
+import { RunLog } from '../../models/RunLog.js';
+import { User } from '../../models/User.js';
 
 describe('buildReport Service', () => {
   const userId = new Types.ObjectId();

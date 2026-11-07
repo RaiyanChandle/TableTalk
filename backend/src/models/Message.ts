@@ -20,6 +20,15 @@ export interface IMessage {
     yLabel?: string;
     data?: Record<string, unknown>[];
   };
+  chartSpecs?: Array<{
+    type: 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+    xKey: string;
+    yKeys: string[];
+    title: string;
+    xLabel?: string;
+    yLabel?: string;
+    data?: Record<string, unknown>[];
+  }>;
   error?: string;
   runId?: string;
   createdAt: Date;
@@ -47,6 +56,17 @@ const MessageSchema = new Schema<IMessage>(
       yLabel: { type: String },
       data: [{ type: Schema.Types.Mixed }],
     },
+    chartSpecs: [
+      {
+        type: { type: String, enum: ['bar', 'line', 'area', 'pie', 'scatter'] },
+        xKey: { type: String },
+        yKeys: [{ type: String }],
+        title: { type: String },
+        xLabel: { type: String },
+        yLabel: { type: String },
+        data: [{ type: Schema.Types.Mixed }],
+      },
+    ],
     error: { type: String },
     runId: { type: String },
   },

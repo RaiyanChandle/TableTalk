@@ -47,6 +47,15 @@ export interface RunAgentResult {
     yLabel?: string;
     data: Record<string, unknown>[];
   };
+  charts?: Array<{
+    type: 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+    xKey: string;
+    yKeys: string[];
+    title: string;
+    xLabel?: string;
+    yLabel?: string;
+    data: Record<string, unknown>[];
+  }>;
   status: 'success' | 'failed' | 'aborted';
   runLog: IRunLog;
 }
@@ -181,6 +190,14 @@ export async function runAgent(params: RunAgentParams): Promise<RunAgentResult> 
           yLabel: state.createdChart.yLabel,
         }
       : undefined,
+    charts: state.charts?.map((c) => ({
+      type: c.type,
+      xKey: c.xKey,
+      yKeys: c.yKeys,
+      title: c.title,
+      xLabel: c.xLabel,
+      yLabel: c.yLabel,
+    })),
     resultPreview: tablePreview
       ? {
           columns: tablePreview.columns,
@@ -207,6 +224,7 @@ export async function runAgent(params: RunAgentParams): Promise<RunAgentResult> 
     sql: state.lastSql,
     table: tablePreview,
     chart: state.createdChart,
+    charts: state.charts && state.charts.length > 0 ? state.charts : (state.createdChart ? [state.createdChart] : []),
     status: runStatus,
     runLog: runLogDoc,
   };

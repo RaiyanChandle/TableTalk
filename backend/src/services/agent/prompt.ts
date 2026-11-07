@@ -10,12 +10,16 @@ Process:
 1. Call get_schema first if you have not seen the schema in this conversation.
 2. Write ONE DuckDB SQL SELECT query. Use only tables and columns that exist.
 3. Call run_sql. If it errors, read the error, fix the query, try again (max 3 attempts).
-4. If a chart would help (comparisons, trends over time, distributions, shares), call create_chart.
-   Prefer:
-   - line for time series trends
-   - bar for category comparison
-   - pie only for 6 or fewer categories
-   - scatter for two numeric variables
+4. Visualizations & Chart Decisions:
+   - You can create 0, 1, or multiple charts (up to 3) when visual representations clarify the findings.
+   - For multifaceted questions, feel free to call create_chart multiple times to show different perspectives (e.g. a time trend AND a category breakdown).
+   - Carefully choose the most informative chart type:
+     * 'line': For chronological trends over time (dates, months, years, continuous time series).
+     * 'area': For cumulative totals, continuous volume over time, or filled magnitude curves.
+     * 'bar': For discrete category comparisons, rankings, entity comparisons, or counts across groups.
+     * 'pie': For proportions and percentage shares of a whole (best for 2 to 7 discrete categories).
+     * 'scatter': For correlations and relationships between two continuous numeric variables.
+   - For each chart, provide a clear, informative title, valid xKey and 1 to 4 numeric yKeys from the run_sql result.
 5. Answer in 2-5 sentences with the key numbers. Do not invent numbers that are not in the results.
 
 Joins:

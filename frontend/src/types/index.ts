@@ -73,6 +73,7 @@ export interface Message {
   sql?: string;
   tablePreview?: TablePreview;
   chartSpec?: ChartSpec;
+  chartSpecs?: ChartSpec[];
   error?: string;
   runId?: string;
   createdAt: string;

@@ -10,6 +10,7 @@ interface StreamingMessageProps {
   streamingSql: string | null;
   streamingTable: TablePreview | null;
   streamingChart: ChartSpec | null;
+  streamingCharts?: ChartSpec[];
   onStopStream: () => void;
 }
 
@@ -20,6 +21,7 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
   streamingSql,
   streamingTable,
   streamingChart,
+  streamingCharts,
   onStopStream,
 }) => {
   return (
@@ -67,12 +69,22 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
         </div>
       )}
 
-      {/* Streaming Chart */}
-      {streamingChart && (
-        <div className="my-4 min-w-0 max-w-full overflow-hidden">
-          <ChartRenderer spec={streamingChart} />
-        </div>
-      )}
+      {/* Streaming Charts */}
+      {(() => {
+        const charts = streamingCharts && streamingCharts.length > 0
+          ? streamingCharts
+          : (streamingChart ? [streamingChart] : []);
+
+        if (charts.length === 0) return null;
+
+        return (
+          <div className="my-4 space-y-4 min-w-0 max-w-full overflow-hidden">
+            {charts.map((spec, i) => (
+              <ChartRenderer key={`stream-chart-${i}`} spec={spec} />
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Streaming Table */}
       {streamingTable && streamingTable.rows.length > 0 && (
