@@ -58,31 +58,33 @@ export const LoginPage: React.FC = () => {
       </div>
 
       {/* Content Container */}
-      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center mt-12 sm:mt-16">
-        {/* Auth Card with dual archway crest */}
-        <div className="relative w-full bg-white border border-[#DDD8CB] rounded-2xl pt-13 pb-8 px-8 sm:px-9 shadow-lg shadow-stone-900/5">
-          {/* Outer concentric half-ring (filled warm ivory arch) */}
-          <div
-            className="absolute -top-[68px] left-1/2 -translate-x-1/2 w-[136px] h-[69px] rounded-t-full bg-[#FAF5EC] border-t border-l border-r border-[#DDD8CB] pointer-events-none z-0"
-            aria-hidden="true"
-          />
-
-          {/* Inner dome: upper outer boundary seamlessly continuing the card body */}
-          <div
-            className="absolute -top-[53px] left-1/2 -translate-x-1/2 w-[106px] h-[55px] rounded-t-full bg-white border-t border-l border-r border-[#DDD8CB] pointer-events-none z-10"
-            aria-hidden="true"
-          />
-
-          {/* TableTalk Logo inside the crest */}
+      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center mt-8">
+        {/* Auth Card with circular extension over the top border */}
+        <div className="relative w-full bg-white border border-[#DDD8CB] rounded-2xl pt-15 pb-8 px-8 sm:px-9 shadow-lg shadow-stone-900/5">
+          {/* Circular extension with upper outer boundary holding large logo */}
           <Link
             to="/"
             title="Back to TableTalk Home"
-            className="absolute -top-10 left-1/2 -translate-x-1/2 z-20 flex items-center justify-center select-none"
+            className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 rounded-full bg-white flex items-center justify-center select-none"
           >
+            {/* Upper Outer Boundary Arc */}
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              viewBox="0 0 96 96"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M 0.5 48 A 47.5 47.5 0 0 1 95.5 48"
+                stroke="#DDD8CB"
+                strokeWidth="1"
+              />
+            </svg>
+
             <img
               src="/logo.png"
               alt="TableTalk Logo"
-              className="h-14 w-auto max-w-[82px] object-contain"
+              className="h-16 w-16 sm:h-18 sm:w-18 object-contain relative z-10"
             />
           </Link>
 
