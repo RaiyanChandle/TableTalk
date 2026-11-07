@@ -58,21 +58,22 @@ export const RegisterPage: React.FC = () => {
       </div>
 
       {/* Content Container */}
-      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center">
-        {/* Brand / Logo */}
-        <Link to="/" className="mb-8 flex items-center gap-3 group">
-          <img
-            src="/logo.png"
-            alt="TableTalk Logo"
-            className="h-10 md:h-11 w-auto object-contain select-none transition-transform duration-200 group-hover:scale-105"
-          />
-          <span className="font-serif font-bold text-2xl text-[#261C14] tracking-tight">
-            TableTalk
-          </span>
-        </Link>
+      <div className="relative z-10 w-full max-w-[420px] flex flex-col items-center mt-6">
+        {/* Auth Card with circular crest badge extending over the top border */}
+        <div className="relative w-full bg-white border border-[#DDD8CB] rounded-2xl pt-13 pb-8 px-8 sm:px-9 shadow-lg shadow-stone-900/5">
+          {/* Circular Crest Badge holding just the Logo */}
+          <Link
+            to="/"
+            title="Back to TableTalk Home"
+            className="group absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-white border border-[#DDD8CB] flex items-center justify-center shadow-xs hover:shadow-md hover:scale-105 transition-all duration-200"
+          >
+            <img
+              src="/logo.png"
+              alt="TableTalk Logo"
+              className="h-11 w-11 object-contain transition-transform duration-200 group-hover:scale-110"
+            />
+          </Link>
 
-        {/* Auth Card */}
-        <div className="w-full bg-white border border-[#DDD8CB] rounded-xl p-8 sm:p-9 shadow-md shadow-stone-900/5">
           <h1 className="font-serif text-3xl font-medium text-[#261C14] mb-2 text-center">
             Create Account
           </h1>
