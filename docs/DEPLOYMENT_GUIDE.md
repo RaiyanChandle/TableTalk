@@ -1,166 +1,111 @@
-# TableTalk — Master Deployment & Multi-Project Server Runbook
+# TableTalk — Complete Production Deployment & Multi-Project Operations Guide
 
-This document is the definitive production guide for **TableTalk** on Oracle Cloud Infrastructure (OCI). It documents the live infrastructure, provides an operational runbook for pushing updates, and serves as an architectural blueprint for deploying future applications on this server without conflicts.
-
----
-
-## 1. Live Deployment Snapshot & Metadata
-
-| Parameter | Value | Notes |
-|---|---|---|
-| **Server Host** | Oracle Cloud Infrastructure (OCI) | Compute Instance |
-| **Operating System** | Ubuntu 24.04 LTS | Canonical Minimal / Server |
-| **Public IPv4 Address** | `132.226.187.245` | Static / Assigned via OCI Ephemeral IP |
-| **Primary Domain** | `r2cstack.site` | Registered with Namecheap |
-| **Application URL** | `https://tabletalk.r2cstack.site` | Active HTTPS with Let's Encrypt |
-| **Backend Internal Address** | `127.0.0.1:8001` | Bound strictly to localhost; never public |
-| **Database** | MongoDB Community Server (v7.0) | Localhost `127.0.0.1:27017/tabletalk_prod` |
-| **Process Manager** | PM2 | Managed under service `tabletalk-backend` |
-| **Web Server / Reverse Proxy** | Nginx | Serves static frontend on 80/443, proxies `/api/` |
-| **SSL / TLS Certificate** | Let's Encrypt | Auto-renewing via Certbot |
-| **Reserved Development Port** | `5173` | **Strictly preserved**; never used in production |
+This document is the permanent DevOps reference manual and runbook for **TableTalk** and all future applications hosted on this Oracle Cloud Infrastructure (OCI) server.
 
 ---
 
-## 2. Server Directory Architecture
+## 1. Production Server & Infrastructure Specification
 
-All applications on this server follow a modular, isolated directory structure under `/var/www/`.
+| Attribute | Production Value |
+|---|---|
+| **Cloud Provider** | Oracle Cloud Infrastructure (OCI) |
+| **Operating System** | Ubuntu 24.04 LTS |
+| **Public IPv4 Address** | `132.226.187.245` |
+| **Primary Domain** | `r2cstack.site` (Namecheap Registrar) |
+| **Active Subdomain** | `tabletalk.r2cstack.site` |
+| **Live Production URL** | `https://tabletalk.r2cstack.site` |
+| **SSH Default User** | `ubuntu` |
+| **SSH Access Command** | `ssh -i C:\Users\RAIYAN\.ssh\oci_tabletalk.key ubuntu@132.226.187.245` |
+| **Web Server & Reverse Proxy** | Nginx (`/etc/nginx/sites-available/tabletalk`) |
+| **Process Manager** | PM2 (`tabletalk-backend`, autostart on system boot) |
+| **Database** | MongoDB Community Server (local on `127.0.0.1:27017`) |
+| **SSL / TLS Certificate** | Let's Encrypt (Certbot, auto-renewing via systemd timer) |
+
+---
+
+## 2. Server Port Allocation Map
+
+| Application / Purpose | Domain / Subdomain | Public Ports | Internal Port | Process Name | Hosting Strategy |
+|---|---|---|---|---|---|
+| **TableTalk (Frontend)** | `tabletalk.r2cstack.site` | **80, 443** | N/A | Static | Served directly by Nginx from `/var/www/tabletalk/frontend/dist` |
+| **TableTalk (Backend)** | `tabletalk.r2cstack.site/api` | **Blocked** | `127.0.0.1:8001` | `tabletalk-backend` | PM2 Node/Express process reverse-proxied by Nginx |
+| **Project 2 (Future)** | `project2.r2cstack.site` | **80, 443** | `127.0.0.1:8002` | `project2-backend` | Static Nginx frontend + PM2 backend |
+| **Project 3 (Future)** | `project3.r2cstack.site` | **80, 443** | `127.0.0.1:8003` | `project3-backend` | Static Nginx frontend + PM2 backend |
+| **Project 4 (Future)** | `project4.r2cstack.site` | **80, 443** | `127.0.0.1:8004` | `project4-backend` | Static Nginx frontend + PM2 backend |
+| **Vite Dev Server Port** | `localhost` | **Blocked** | `5173` | *Unused* | **STRICTLY RESERVED** (Never used in production) |
+
+---
+
+## 3. Server Directory Architecture
+
+All applications reside inside `/var/www/` owned by `ubuntu:ubuntu`:
 
 ```
 /var/www/
-│
-├── tabletalk/                              <-- TableTalk Root
+├── tabletalk/                             <-- Current Application
 │   ├── frontend/
-│   │   ├── dist/                           <-- Production static assets served by Nginx
-│   │   │   ├── index.html
-│   │   │   └── assets/
+│   │   ├── dist/                          <-- Static build served by Nginx (index.html, assets/)
 │   │   ├── src/
 │   │   ├── package.json
-│   │   └── .env                            <-- VITE_API_URL=
-│   │
+│   │   └── .env                           (VITE_API_URL=)
 │   ├── backend/
-│   │   ├── dist/                           <-- Compiled production JavaScript
-│   │   │   └── index.js
+│   │   ├── dist/                          <-- Compiled TypeScript JavaScript (index.js)
 │   │   ├── src/
+│   │   ├── storage/                       <-- Internal user storage
+│   │   ├── ecosystem.config.cjs           <-- PM2 configuration file
 │   │   ├── package.json
-│   │   ├── ecosystem.config.cjs            <-- PM2 runtime configuration
-│   │   └── .env                            <-- Production secrets (PORT=8001, keys)
-│   │
-│   └── uploads/                            <-- Multi-CSV isolated upload directory
+│   │   └── .env                           (PORT=8001, MONGODB_URI=..., GOOGLE_API_KEY=...)
+│   └── uploads/                           <-- Dedicated uploads folder outside web root
 │
-├── project2/                               <-- Blueprint for Future Project 2
+├── project2/                              <-- Future Project 2 (Isolated)
 │   ├── frontend/dist/
-│   ├── backend/ (Port 8002)
+│   ├── backend/
+│   │   └── ecosystem.config.cjs           (PORT=8002, process: project2-backend)
 │   └── uploads/
 │
-└── project3/                               <-- Blueprint for Future Project 3
-    ├── frontend/dist/
-    ├── backend/ (Port 8003)
-    └── uploads/
+└── project3/                              <-- Future Project 3 (Isolated)
 ```
 
-### Security & Ownership Rules
-- All directories under `/var/www/` are owned by `ubuntu:ubuntu`:
-  ```bash
-  sudo chown -R ubuntu:ubuntu /var/www
-  ```
-- Uploaded CSVs are stored in `/var/www/tabletalk/uploads/` and are **never** placed inside public web directories.
-- Environment files (`.env`) have permissions restricted to the owner:
-  ```bash
-  chmod 600 /var/www/tabletalk/backend/.env
-  ```
-
 ---
 
-## 3. Port Allocation Map (Multi-Project)
+## 4. Complete Chronicle of All Deployment Steps Executed
 
-To prevent port collisions, backend services are assigned dedicated localhost ports:
+### Phase 1: Provisioning & Network Security
+1. **VM Creation**: Provisioned an Ubuntu 24.04 LTS instance named `tabletalk-server` with an assigned Public IP (`132.226.187.245`).
+2. **SSH Key Pair**: Generated and downloaded `oci_tabletalk.key`. Configured Windows permissions with `icacls .\oci_tabletalk.key /inheritance:r /grant:r "$($env:USERNAME):(R)"`.
+3. **Oracle Cloud VCN Security Rules**: Added Ingress Rules to the VCN Default Security List:
+   - Source: `0.0.0.0/0` (CIDR), Protocol: `TCP`, Destination Port Range: `80-443` (HTTP & HTTPS) and `22` (SSH).
 
-| Project | Subdomain / URL | Frontend Hosting | Backend Local Port | PM2 Process Name | Database |
-|---|---|---|---|---|---|
-| **TableTalk** | `tabletalk.r2cstack.site` | `/var/www/tabletalk/frontend/dist` | `127.0.0.1:8001` | `tabletalk-backend` | `127.0.0.1:27017/tabletalk_prod` |
-| **Project 2** | `project2.r2cstack.site` | `/var/www/project2/frontend/dist` | `127.0.0.1:8002` | `project2-backend` | Isolated DB / SQLite / Postgres |
-| **Project 3** | `project3.r2cstack.site` | `/var/www/project3/frontend/dist` | `127.0.0.1:8003` | `project3-backend` | Isolated DB / SQLite / Postgres |
-| **Project 4** | `project4.r2cstack.site` | `/var/www/project4/frontend/dist` | `127.0.0.1:8004` | `project4-backend` | Isolated DB / SQLite / Postgres |
-| *Reserved* | *(Localhost only)* | *Unallocated* | `5173` | *None* | *Reserved for local Vite dev* |
-
----
-
-## 4. Complete Step-by-Step Deployment History
-
-### Phase 1: Oracle Cloud Compute & Network Security
-1. **VM Provisioning**: Launched an Ubuntu 24.04 LTS instance with an assigned public IPv4 (`132.226.187.245`).
-2. **SSH Key Pair**: Downloaded the private `.key` file and restricted local Windows permissions:
-   ```powershell
-   icacls .\oci_tabletalk.key /inheritance:r
-   icacls .\oci_tabletalk.key /grant:r "$($env:USERNAME):(R)"
-   ```
-3. **OCI VCN Ingress Rules**: Added rules in the default security list for the subnet:
-   - Port 22 (SSH)
-   - Port 80 (HTTP)
-   - Port 443 (HTTPS)
-   - Source: `0.0.0.0/0` (CIDR)
-
-### Phase 2: Ubuntu Server Initialization & Hardening
-1. **Package Updates**:
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   sudo apt install -y curl wget git build-essential ufw software-properties-common ca-certificates gnupg
-   ```
-2. **Runtimes Installed**:
+### Phase 2: Ubuntu System Initialization & Hardening
+1. **System Updates**: Ran `sudo apt update && sudo apt upgrade -y`.
+2. **Build Tools**: Installed `git`, `curl`, `build-essential`, `ufw`, `iptables-persistent`.
+3. **Runtimes Installed**:
    - Node.js LTS (v22 via NodeSource) and npm.
    - PM2 globally (`sudo npm install -g pm2`).
-   - Python 3, pip, and venv (`sudo apt install -y python3 python3-pip python3-venv`).
-3. **Firewall & Network Hardening (UFW & iptables)**:
-   - Configured UFW to allow only SSH, HTTP, and HTTPS:
-     ```bash
-     sudo ufw allow 22/tcp
-     sudo ufw allow 80/tcp
-     sudo ufw allow 443/tcp
-     sudo ufw --force enable
-     ```
-   - Aligned Oracle Cloud's default Ubuntu `iptables` chains to prevent connection timeouts:
+   - Python 3, pip, and venv (`python3`, `python3-pip`, `python3-venv`).
+4. **Firewall Lockdown**:
+   - `sudo ufw allow 22/tcp`
+   - `sudo ufw allow 80/tcp`
+   - `sudo ufw allow 443/tcp`
+   - `sudo ufw --force enable`
+   - Fixed Oracle Cloud's default OS-level iptables reject rule:
      ```bash
      sudo iptables -I INPUT 1 -p tcp --dport 80 -j ACCEPT
      sudo iptables -I INPUT 1 -p tcp --dport 443 -j ACCEPT
-     sudo apt install -y iptables-persistent
      sudo netfilter-persistent save
      ```
-4. **Nginx Installed**:
-   ```bash
-   sudo apt install -y nginx
-   sudo systemctl enable nginx && sudo systemctl start nginx
-   ```
+5. **Nginx Installed**: Installed and enabled `nginx` (`sudo systemctl enable nginx`).
 
-### Phase 3: Directory Architecture & Git Setup
-1. Created `/var/www/tabletalk` and set ownership:
-   ```bash
-   sudo mkdir -p /var/www/tabletalk/uploads
-   sudo chown -R ubuntu:ubuntu /var/www
-   ```
-2. Cloned the repository from GitHub into `/var/www/tabletalk`.
+### Phase 3: Repository & Directory Setup
+1. Created `/var/www/tabletalk/` with `sudo chown -R ubuntu:ubuntu /var/www`.
+2. Cloned git repository directly into `/var/www/tabletalk`.
+3. Created `/var/www/tabletalk/uploads` for secure CSV quarantine.
 
-### Phase 4: Backend Production Setup (Port 8001 + PM2)
-1. **MongoDB Community Server**: Installed locally and bound to `127.0.0.1:27017`.
-   ```bash
-   curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor --yes
-   echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
-   sudo apt update && sudo apt install -y mongodb-org
-   sudo systemctl enable mongod && sudo systemctl start mongod
-   ```
-2. **Compiled Backend TypeScript**:
-   ```bash
-   cd /var/www/tabletalk/backend
-   npm install
-   npm run build
-   ```
-3. **Configured Environment File (`/var/www/tabletalk/backend/.env`)**:
-   - `PORT=8001`
-   - `NODE_ENV=production`
-   - `CLIENT_ORIGIN=https://tabletalk.r2cstack.site`
-   - `MONGODB_URI=mongodb://127.0.0.1:27017/tabletalk_prod`
-   - `GOOGLE_API_KEY=...`
-4. **Configured PM2 (`ecosystem.config.cjs`)**:
+### Phase 4: Database & Backend Deployment (Port 8001 + PM2)
+1. **MongoDB Installed**: Configured MongoDB 7.0 repo, installed `mongodb-org`, enabled and started `mongod` on `127.0.0.1:27017`.
+2. **Dependencies & Build**: Ran `npm install` and `npm run build` in `/var/www/tabletalk/backend` to generate `dist/`.
+3. **Environment Setup**: Created `/var/www/tabletalk/backend/.env` with `PORT=8001`, `NODE_ENV=production`, `CLIENT_ORIGIN=https://tabletalk.r2cstack.site`, and `GOOGLE_API_KEY`. Protected with `chmod 600 .env`.
+4. **PM2 Ecosystem Configuration** (`/var/www/tabletalk/backend/ecosystem.config.cjs`):
    ```javascript
    module.exports = {
      apps: [
@@ -180,71 +125,37 @@ To prevent port collisions, backend services are assigned dedicated localhost po
      ],
    };
    ```
-5. **Started PM2 & Enabled Boot Persistence**:
-   ```bash
-   pm2 start ecosystem.config.cjs
-   pm2 save
-   pm2 startup  # (executed the output sudo command)
-   pm2 install pm2-logrotate
-   ```
+5. **Autostart on Reboot**: Executed `pm2 start ecosystem.config.cjs`, `pm2 save`, and `pm2 startup` systemd hooks.
+6. **Log Rotation**: Installed `pm2-logrotate` (capped to 10MB, max 10 files).
 
-### Phase 5: Frontend Production Build (Static Nginx)
-1. **Configured Frontend `.env`**: Set `VITE_API_URL=` (empty string so requests use relative `/api` paths).
-2. **Built Static Files**:
-   ```bash
-   cd /var/www/tabletalk/frontend
-   npm install
-   npm run build
-   ```
-   *(Generated production bundle in `/var/www/tabletalk/frontend/dist` without running any dev server).*
+### Phase 5: Production Frontend Static Build
+1. In `/var/www/tabletalk/frontend`:
+   - Configured `.env` with `VITE_API_URL=` (empty string so requests use relative `/api` on the same domain).
+   - Ran `npm install` and `npm run build` to generate `/var/www/tabletalk/frontend/dist/`.
+   - Port 5173 was left completely untouched.
 
-### Phase 6: Nginx Modular Configuration & Reverse Proxy
-1. Created `/etc/nginx/sites-available/tabletalk` (detailed in Section 5).
-2. Enabled the site:
-   ```bash
-   sudo rm -f /etc/nginx/sites-enabled/default
-   sudo ln -sf /etc/nginx/sites-available/tabletalk /etc/nginx/sites-enabled/
-   sudo nginx -t && sudo systemctl reload nginx
-   ```
-
-### Phase 7: Namecheap DNS & Let's Encrypt SSL
-1. **Namecheap DNS Record**:
-   - Type: `A Record`
-   - Host: `tabletalk`
-   - Value: `132.226.187.245`
-   - TTL: `Automatic`
-2. **SSL Installation**:
-   ```bash
-   sudo apt install -y certbot python3-certbot-nginx
-   sudo certbot --nginx -d tabletalk.r2cstack.site
-   ```
-3. **Renewal Automation**: Verified renewal timer:
-   ```bash
-   sudo certbot renew --dry-run
-   ```
+### Phase 6 & 7: Nginx Configuration & Let's Encrypt SSL
+1. Created `/etc/nginx/sites-available/tabletalk` and symlinked to `/etc/nginx/sites-enabled/tabletalk`. Removed default placeholder site.
+2. Configured Namecheap Advanced DNS `A Record`: Host `tabletalk` &rarr; IP `132.226.187.245`.
+3. Installed Certbot (`sudo apt install -y certbot python3-certbot-nginx`).
+4. Ran `sudo certbot --nginx -d tabletalk.r2cstack.site` which configured SSL and HTTP-to-HTTPS redirects automatically.
 
 ---
 
-## 5. Active Nginx Configuration Details
+## 5. Active Nginx Configuration (`/etc/nginx/sites-available/tabletalk`)
 
-The production configuration lives in `/etc/nginx/sites-available/tabletalk` and is symlinked to `/etc/nginx/sites-enabled/tabletalk`.
+Below is the complete, active configuration for TableTalk:
 
 ```nginx
-# ==============================================================================
-# Nginx Configuration for TableTalk
-# File: /etc/nginx/sites-available/tabletalk
-# ==============================================================================
-
-# HTTP — Redirect all non-secure traffic to HTTPS
+# HTTP - Redirect all traffic to HTTPS
 server {
     listen 80;
     listen [::]:80;
     server_name tabletalk.r2cstack.site;
-
     return 301 https://$host$request_uri;
 }
 
-# HTTPS — Main Application Block
+# HTTPS - Production Web & Reverse Proxy
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
@@ -256,23 +167,16 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    # 1. Frontend: Serve production static files directly
+    # 1. Frontend: Serve React production static build
     root /var/www/tabletalk/frontend/dist;
     index index.html;
 
-    # Maximum file upload size (matches our 100MB multi-CSV backend cap)
+    # Maximum upload size for multi-CSV ingestion
     client_max_body_size 100M;
 
-    # SPA Client-Side Routing Fallback
-    # Routes like /login, /register, /app resolve cleanly without 404
+    # SPA client-side routing fallback (prevents 404 on page refresh)
     location / {
         try_files $uri $uri/ /index.html;
-    }
-
-    # Static asset caching
-    location /assets/ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
     }
 
     # 2. Backend Reverse Proxy: Forward /api/ to PM2 on 127.0.0.1:8001
@@ -286,14 +190,13 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # Server-Sent Events (SSE) Streaming Optimization
-        # Essential for token-by-token streaming and live query step status
+        # SSE (Server-Sent Events) Streaming Configuration
         proxy_set_header Connection '';
         proxy_buffering off;
         proxy_cache off;
         chunked_transfer_encoding on;
 
-        # Extended timeouts for complex multi-table SQL queries
+        # Long-running analytical query timeouts
         proxy_read_timeout 600s;
         proxy_connect_timeout 60s;
         proxy_send_timeout 600s;
@@ -303,146 +206,87 @@ server {
 
 ---
 
-## 6. How to Push Updates to TableTalk (The Repeatable Git Runbook)
+## 6. How to Deploy Future Projects (Step-by-Step Blueprint)
 
-When you make changes to TableTalk locally and want to deploy them, follow this manual deployment workflow.
+When you are ready to deploy **Project 2** (e.g. `project2.r2cstack.site`), follow this exact sequence without touching TableTalk:
 
-### Step 1: Push from Your Local Computer (Windows)
-In your local terminal (`d:\Projects\SQLRag`):
-```powershell
-# 1. Check status
-git status
+### Step 1: Allocate Port and Subdomain
+- Subdomain: `project2.r2cstack.site`
+- Backend Port: `127.0.0.1:8002`
+- Directory: `/var/www/project2`
 
-# 2. Stage and commit your changes
-git add .
-git commit -m "feat: description of changes"
+### Step 2: Namecheap DNS Record
+In Namecheap Advanced DNS, add:
+- **Type**: `A Record`
+- **Host**: `project2`
+- **Value**: `132.226.187.245`
+- **TTL**: `Automatic`
 
-# 3. Push to GitHub
-git push origin main
-```
-
-### Step 2: SSH into Oracle Cloud
-```powershell
-ssh -i C:\Users\RAIYAN\.ssh\oci_tabletalk.key ubuntu@132.226.187.245
-```
-
-### Step 3: Pull Changes on Server
+### Step 3: Clone Project into Its Own Directory
 ```bash
-cd /var/www/tabletalk
-git pull origin main
+# Inside your Oracle Cloud SSH terminal:
+mkdir -p /var/www/project2
+git clone https://github.com/<your-user>/<project2-repo>.git /var/www/project2
 ```
 
-### Step 4: Rebuild Frontend (If Frontend Files Changed)
-```bash
-cd /var/www/tabletalk/frontend
-npm install
-npm run build
-```
-*(Nginx automatically serves the updated `dist/` immediately. You do NOT need to restart Nginx).*
-
-### Step 5: Rebuild & Restart Backend (If Backend Files Changed)
-```bash
-cd /var/www/tabletalk/backend
-npm install
-npm run build
-pm2 restart tabletalk-backend
-```
-
-### Step 6: Verify Deployment
-```bash
-# Check PM2 process health
-pm2 status
-
-# View recent backend logs
-pm2 logs tabletalk-backend --lines 20 --nostream
-
-# Test API health
-curl -i https://tabletalk.r2cstack.site/api/health
-```
-
----
-
-## 7. Blueprint: How to Deploy a New Project (e.g. Project 2)
-
-When you are ready to deploy your second application (`project2`) on this same server, follow these exact steps without disturbing TableTalk.
-
-### Step 1: Namecheap DNS Setup
-1. Open **Namecheap** &rarr; **Advanced DNS**.
-2. Add an **A Record**:
-   - **Type**: `A Record`
-   - **Host**: `project2` *(or whatever subdomain you want)*
-   - **Value**: `132.226.187.245`
-   - **TTL**: `Automatic`
-
-### Step 2: Create Project Directory on Server
-```bash
-sudo mkdir -p /var/www/project2
-sudo chown -R ubuntu:ubuntu /var/www/project2
-cd /var/www/project2
-
-# Clone the new project repository
-git clone <PROJECT2_GITHUB_URL> /var/www/project2
-```
-
-### Step 3: Configure Project 2 Backend Port (e.g., 8002)
-1. Create `/var/www/project2/backend/.env`:
+### Step 4: Configure & Launch Project 2 Backend with PM2
+1. Create `/var/www/project2/backend/.env` setting `PORT=8002`.
+2. Build the backend:
    ```bash
-   PORT=8002
-   NODE_ENV=production
-   # other environment variables...
+   cd /var/www/project2/backend
+   npm install && npm run build # (Or if Python: python3 -m venv venv && pip install -r requirements.txt)
    ```
-2. Create `/var/www/project2/backend/ecosystem.config.cjs`:
+3. Create `/var/www/project2/backend/ecosystem.config.cjs`:
    ```javascript
    module.exports = {
      apps: [
        {
          name: 'project2-backend',
-         script: 'dist/index.js', # (or app.py / gunicorn for Python)
+         script: 'dist/index.js', # (Or python: 'venv/bin/gunicorn -b 127.0.0.1:8002 app:app')
          cwd: '/var/www/project2/backend',
          instances: 1,
          autorestart: true,
          env: {
-           PORT: 8002,
            NODE_ENV: 'production',
+           PORT: 8002,
          },
        },
      ],
    };
    ```
-3. Start under PM2:
+4. Start with PM2:
    ```bash
-   cd /var/www/project2/backend
-   npm install && npm run build
    pm2 start ecosystem.config.cjs
    pm2 save
    ```
 
-### Step 4: Build Project 2 Frontend
+### Step 5: Build Project 2 Frontend
 ```bash
 cd /var/www/project2/frontend
-npm install
-npm run build
-# (Creates /var/www/project2/frontend/dist)
+npm install && npm run build
+# Generates /var/www/project2/frontend/dist
 ```
 
-### Step 5: Create Project 2 Nginx Configuration
-Create a dedicated file in `/etc/nginx/sites-available/project2`:
+### Step 6: Create Independent Nginx Configuration
+Create `/etc/nginx/sites-available/project2`:
 ```bash
-sudo tee /etc/nginx/sites-available/project2 > /dev/null << 'EOF'
+sudo nano /etc/nginx/sites-available/project2
+```
+Paste this configuration:
+```nginx
 server {
     listen 80;
     listen [::]:80;
     server_name project2.r2cstack.site;
 
-    # Static frontend
     root /var/www/project2/frontend/dist;
     index index.html;
+    client_max_body_size 50M;
 
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # Backend reverse proxy on 8002
     location /api/ {
         proxy_pass http://127.0.0.1:8002;
         proxy_http_version 1.1;
@@ -452,102 +296,115 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
-EOF
 ```
 
-Enable the site and reload Nginx:
+Enable it and reload Nginx:
 ```bash
 sudo ln -sf /etc/nginx/sites-available/project2 /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### Step 6: Generate SSL with Certbot for Project 2
+### Step 7: Issue SSL Certificate
 ```bash
 sudo certbot --nginx -d project2.r2cstack.site
 ```
-*Certbot will automatically add HTTPS configuration to `project2` without modifying `tabletalk`!*
+Certbot will issue the certificate and enable HTTPS on port 443 for Project 2 without touching TableTalk!
 
 ---
 
-## 8. What NOT to Do (The Golden Rules)
+## 7. What NOT to Do (Golden Rules & Pitfalls)
 
-To maintain a healthy, reliable multi-project server, adhere strictly to these rules:
-
-1. **NEVER run `npm run dev` or launch Vite development servers in production.**
-   - Vite dev servers consume unnecessary memory, lack HTTP/2 optimization, and do not belong in production.
-   - Always run `npm run build` and let Nginx serve the `dist/` static files directly.
-2. **NEVER bind backend processes to `0.0.0.0` or expose backend ports publicly.**
-   - All backends must bind strictly to `127.0.0.1:<PORT>` (e.g. `127.0.0.1:8001`, `127.0.0.1:8002`).
-   - Only ports 22, 80, and 443 should ever be open publicly in UFW and OCI Security Lists.
-3. **NEVER use port `5173`.**
-   - Port 5173 is explicitly reserved for future local tooling. Never allocate it to an Nginx block or backend process.
-4. **NEVER edit files inside `/etc/nginx/sites-enabled/` directly.**
-   - Always write and edit configurations inside `/etc/nginx/sites-available/<project_name>`.
-   - Symlink to `sites-enabled` with `sudo ln -sf ...`.
-   - Always run `sudo nginx -t` before reloading Nginx to avoid bringing down active websites with syntax typos.
-5. **NEVER commit `.env` files, API keys, or uploaded CSV files to GitHub.**
-   - Maintain `.env` files exclusively on the server with `chmod 600`.
-6. **NEVER delete or overwrite another project's PM2 process or Nginx file.**
-   - When running PM2 commands, always specify the process name (e.g., `pm2 restart tabletalk-backend`), never use `pm2 restart all` unless explicitly intending to reboot every application on the machine.
+1. **NEVER run `npm run dev` or launch the Vite development server in production**:
+   - Always run `npm run build` and let Nginx serve the static files in `dist/`.
+   - Running `npm run dev` wastes server memory, uses excessive CPU, lacks production bundling optimizations, and occupies port 5173.
+2. **NEVER expose backend ports (`8001`, `8002`, `8003`) in Oracle Security Lists or UFW**:
+   - Backends must listen strictly on `127.0.0.1`.
+   - Only Nginx on ports `80` and `443` should face the public internet.
+3. **NEVER put `.env` files in Git**:
+   - Your `.env` files contain MongoDB URIs, JWT secrets, and Gemini API keys.
+   - Always create `.env` manually on the server with `chmod 600 .env`.
+4. **NEVER put all projects in a single Nginx file**:
+   - Always create separate files in `/etc/nginx/sites-available/<project_name>`.
+   - This ensures an edit or mistake in one project cannot crash Nginx for your other websites.
+5. **ALWAYS test Nginx before reloading**:
+   - Always run `sudo nginx -t` before `sudo systemctl reload nginx`.
+6. **NEVER forget `pm2 save`**:
+   - Whenever you start, stop, or add a process in PM2, run `pm2 save` so the process list is preserved if the server reboots.
+7. **NEVER expose uploaded CSV files directly in a public web directory**:
+   - Uploads live in `/var/www/tabletalk/uploads` (or `backend/storage`), safely isolated from public web URLs.
 
 ---
 
-## 9. Useful Troubleshooting Commands
+## 8. Workflow: How to Push Code Updates to TableTalk
 
-### Process Management (PM2)
+Whenever you make changes to TableTalk on your local machine, follow this simple, repeatable workflow:
+
+### Step 1: On Your Local Windows Machine
+Commit and push your code to GitHub:
+```powershell
+git add .
+git commit -m "feat(ui): update landing page and analytics charts"
+git push origin main
+```
+
+### Step 2: SSH into Your Oracle Cloud Server
+```powershell
+ssh -i C:\Users\RAIYAN\.ssh\oci_tabletalk.key ubuntu@132.226.187.245
+```
+
+### Step 3: Pull Latest Changes
 ```bash
-# View all running processes and memory/CPU usage
+cd /var/www/tabletalk
+git pull origin main
+```
+
+### Step 4: Rebuild Frontend (if frontend code changed)
+```bash
+cd /var/www/tabletalk/frontend
+npm install # Only needed if you added new packages
+npm run build
+```
+*(No Nginx restart is needed! Nginx automatically serves the updated `dist/` files immediately).*
+
+### Step 5: Rebuild & Restart Backend (if backend code changed)
+```bash
+cd /var/www/tabletalk/backend
+npm install # Only needed if you added new packages
+npm run build
+pm2 restart tabletalk-backend
+```
+
+### Step 6: Verify
+```bash
+pm2 status
+pm2 logs tabletalk-backend --lines 20 --nostream
+```
+Open `https://tabletalk.r2cstack.site` in your browser and verify your updates!
+
+---
+
+## 9. Useful Everyday Maintenance Commands
+
+```bash
+# Check PM2 processes
 pm2 status
 
-# Real-time streaming logs for TableTalk
+# View live backend logs (Ctrl+C to exit)
 pm2 logs tabletalk-backend
 
 # Restart TableTalk backend
 pm2 restart tabletalk-backend
 
-# View PM2 startup script configuration
-pm2 startup
-```
+# Check Nginx error logs if a web request fails
+sudo tail -f /var/log/nginx/error.log
 
-### Web Server (Nginx)
-```bash
-# Test configuration syntax for errors
-sudo nginx -t
-
-# Gracefully reload configuration (zero downtime)
-sudo systemctl reload nginx
-
-# View real-time web traffic access logs
+# Check Nginx access logs
 sudo tail -f /var/log/nginx/access.log
 
-# View Nginx error logs
-sudo tail -f /var/log/nginx/error.log
-```
-
-### Database (MongoDB)
-```bash
 # Check MongoDB status
-sudo systemctl status mongod --no-pager
+sudo systemctl status mongod
 
-# Restart MongoDB
-sudo systemctl restart mongod
-```
-
-### SSL (Certbot)
-```bash
-# Check all active SSL certificates and expiry dates
-sudo certbot certificates
-
-# Test automatic certificate renewal
-sudo certbot renew --dry-run
-```
-
-### Server Resources
-```bash
-# Check disk usage
+# Check free disk space and memory
 df -h
-
-# Check RAM and CPU usage
 free -m
-htop
 ```
